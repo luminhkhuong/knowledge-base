@@ -736,6 +736,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "technical-knowledge/ai-agents/spec-driven-agentic-coding",
+              "path": "/technical-knowledge/ai-agents/spec-driven-agentic-coding",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "technical-knowledge/ai-agents/vibe-coding",
               "path": "/technical-knowledge/ai-agents/vibe-coding",
               "sidebar": "tutorialSidebar"
@@ -5866,6 +5871,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "technical-knowledge/java/java-logging-slf4j-stacktrace",
+              "path": "/technical-knowledge/java/java-logging-slf4j-stacktrace",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "technical-knowledge/java/java-new-features",
               "path": "/technical-knowledge/java/java-new-features",
               "sidebar": "tutorialSidebar"
@@ -5955,7 +5965,8 @@
             },
             {
               "id": "technical-knowledge/kafka/advanced/kafka-log-compaction",
-              "path": "/technical-knowledge/kafka/advanced/kafka-log-compaction"
+              "path": "/technical-knowledge/kafka/advanced/kafka-log-compaction",
+              "sidebar": "tutorialSidebar"
             },
             {
               "id": "technical-knowledge/kafka/advanced/kafka-mirrormaker2",
@@ -6142,6 +6153,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "technical-knowledge/kafka/streams/invalid-topology-updates",
+              "path": "/technical-knowledge/kafka/streams/invalid-topology-updates",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "technical-knowledge/kafka/streams/overview",
               "path": "/technical-knowledge/kafka/streams/overview",
               "sidebar": "tutorialSidebar"
@@ -6154,6 +6170,11 @@
             {
               "id": "technical-knowledge/kafka/streams/production-runbook",
               "path": "/technical-knowledge/kafka/streams/production-runbook",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-knowledge/kafka/streams/redis-external-state-offset-fencing",
+              "path": "/technical-knowledge/kafka/streams/redis-external-state-offset-fencing",
               "sidebar": "tutorialSidebar"
             },
             {
@@ -6522,6 +6543,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "technical-knowledge/security/jwt-oauth2-oidc-deep-dive",
+              "path": "/technical-knowledge/security/jwt-oauth2-oidc-deep-dive",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "technical-knowledge/security/keys-signing-tls",
               "path": "/technical-knowledge/security/keys-signing-tls",
               "sidebar": "tutorialSidebar"
@@ -6657,6 +6683,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "technical-knowledge/spring/spring-boot-configuration-properties",
+              "path": "/technical-knowledge/spring/spring-boot-configuration-properties",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "technical-knowledge/spring/spring-boot-internals",
               "path": "/technical-knowledge/spring/spring-boot-internals",
               "sidebar": "tutorialSidebar"
@@ -6729,6 +6760,11 @@
             {
               "id": "technical-knowledge/spring/spring-transactional-deep-dive",
               "path": "/technical-knowledge/spring/spring-transactional-deep-dive",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-knowledge/system-design/16-concurrency-concepts-master-guide",
+              "path": "/technical-knowledge/system-design/16-concurrency-concepts-master-guide",
               "sidebar": "tutorialSidebar"
             },
             {
@@ -7007,6 +7043,21 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "technical-knowledge/system-design/opensearch-indexing-schema-operations-guide",
+              "path": "/technical-knowledge/system-design/opensearch-indexing-schema-operations-guide",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-knowledge/system-design/opensearch-query-search-best-practices",
+              "path": "/technical-knowledge/system-design/opensearch-query-search-best-practices",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-knowledge/system-design/opensearch-splunk-migration-guide",
+              "path": "/technical-knowledge/system-design/opensearch-splunk-migration-guide",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "technical-knowledge/system-design/opentelemetry-sampling-strategies",
               "path": "/technical-knowledge/system-design/opentelemetry-sampling-strategies",
               "sidebar": "tutorialSidebar"
@@ -7282,6 +7333,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "technical-knowledge/system-design/resilience-patterns-payments-ticketing",
+              "path": "/technical-knowledge/system-design/resilience-patterns-payments-ticketing",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "technical-knowledge/system-design/retry-pattern",
               "path": "/technical-knowledge/system-design/retry-pattern",
               "sidebar": "tutorialSidebar"
@@ -7314,6 +7370,11 @@
             {
               "id": "technical-knowledge/system-design/security-patterns",
               "path": "/technical-knowledge/system-design/security-patterns",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-knowledge/system-design/senior-engineer-design-course",
+              "path": "/technical-knowledge/system-design/senior-engineer-design-course",
               "sidebar": "tutorialSidebar"
             },
             {

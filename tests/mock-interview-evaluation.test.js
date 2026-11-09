@@ -12,11 +12,11 @@ describe('Mock Interview Studio & Evaluation Engine Suite', () => {
   const { evaluateMockAnswer, normalizeText } = evaluatorModule;
 
   describe('Mock Interview Questions Data Integrity', () => {
-    it('MOCK_INTERVIEW_QUESTIONS must have at least 80 curated questions', () => {
+    it('MOCK_INTERVIEW_QUESTIONS must have at least 90 curated questions', () => {
       assert.ok(Array.isArray(MOCK_INTERVIEW_QUESTIONS), 'Questions must be an array');
       assert.ok(
-        MOCK_INTERVIEW_QUESTIONS.length >= 80,
-        `Expected >= 80 questions, found ${MOCK_INTERVIEW_QUESTIONS.length}`
+        MOCK_INTERVIEW_QUESTIONS.length >= 90,
+        `Expected >= 90 questions, found ${MOCK_INTERVIEW_QUESTIONS.length}`
       );
     });
 
@@ -254,6 +254,214 @@ describe('Mock Interview Studio & Evaluation Engine Suite', () => {
       assert.ok(randomComp && randomComp.maskedName.includes('***'), 'getRandomCompany must return a masked company');
     });
   });
+
+  describe('AI JD Analyzer, Live Bug Hunting & Answer Frameworks Suite', () => {
+    const scenariosModule = loadTsModule('src/data/mockInterviewScenariosData.ts');
+    const {
+      ANSWER_FRAMEWORK_TEMPLATES,
+      LIVE_BUG_SCENARIOS,
+      SAMPLE_JD_PRESETS,
+      analyzeJobDescription,
+      generateInterviewerProbes
+    } = scenariosModule;
+
+    it('ANSWER_FRAMEWORK_TEMPLATES must provide structured Senior answer templates', () => {
+      assert.ok(Array.isArray(ANSWER_FRAMEWORK_TEMPLATES) && ANSWER_FRAMEWORK_TEMPLATES.length >= 3);
+      ANSWER_FRAMEWORK_TEMPLATES.forEach((tpl) => {
+        assert.ok(tpl.id && tpl.name && tpl.templateText.length > 20);
+      });
+    });
+
+    it('LIVE_BUG_SCENARIOS must have at least 6 production bug challenges with exactly 1 correct option each', () => {
+      assert.ok(Array.isArray(LIVE_BUG_SCENARIOS) && LIVE_BUG_SCENARIOS.length >= 6);
+      LIVE_BUG_SCENARIOS.forEach((bug) => {
+        assert.ok(bug.id && bug.title && bug.codeSnippet.length > 20);
+        assert.ok(Array.isArray(bug.options) && bug.options.length === 3);
+        const correctOpts = bug.options.filter((o) => o.isCorrect);
+        assert.strictEqual(correctOpts.length, 1, `Bug ${bug.id} must have exactly 1 correct option`);
+        assert.ok(bug.seniorTakeaway && bug.seniorTakeaway.length > 15);
+      });
+    });
+
+    it('SAMPLE_JD_PRESETS and analyzeJobDescription must accurately parse JD keywords and recommend level', () => {
+      assert.ok(Array.isArray(SAMPLE_JD_PRESETS) && SAMPLE_JD_PRESETS.length >= 3);
+
+      const internAnalysis = analyzeJobDescription(SAMPLE_JD_PRESETS[0].jdContent);
+      assert.strictEqual(internAnalysis.recommendedLevel, 'Intern');
+      assert.ok(internAnalysis.detectedTopics.includes('Java Backend'));
+
+      const juniorAnalysis = analyzeJobDescription(SAMPLE_JD_PRESETS[2].jdContent);
+      assert.strictEqual(juniorAnalysis.recommendedLevel, 'Junior');
+      assert.ok(juniorAnalysis.detectedTopics.length >= 3);
+      assert.ok(juniorAnalysis.readinessChecklist.length >= 3);
+    });
+
+    it('generateInterviewerProbes must generate contextual follow-up probes based on missing points and score', () => {
+      const probesWithMissing = generateInterviewerProbes(
+        'Spring Boot',
+        ['Cơ chế Spring AOP Proxy'],
+        'Cẩn thận lỗi Self-Invocation',
+        65
+      );
+      assert.ok(probesWithMissing.length >= 2);
+      assert.ok(probesWithMissing[0].includes('Spring AOP Proxy'));
+
+      const probesHighScore = generateInterviewerProbes('Database', [], 'Tránh dùng EAGER', 90);
+      assert.ok(probesHighScore.length >= 3);
+    });
+  });
+
+  describe('Behavioral STAR Coach, Rapid-Fire Round & Practice History Suite', () => {
+    const practiceModule = loadTsModule('src/data/mockInterviewPracticeData.ts');
+    const {
+      BEHAVIORAL_QUESTIONS,
+      evaluateStarAnswer,
+      RAPID_FIRE_STATEMENTS,
+      pickRapidFireRound,
+      appendPracticeHistory,
+      summarizePracticeHistory
+    } = practiceModule;
+
+    it('BEHAVIORAL_QUESTIONS must provide complete STAR stories and evaluateStarAnswer must detect S-T-A-R cues', () => {
+      assert.ok(Array.isArray(BEHAVIORAL_QUESTIONS) && BEHAVIORAL_QUESTIONS.length >= 5);
+      BEHAVIORAL_QUESTIONS.forEach((bq) => {
+        assert.ok(bq.id && bq.question && bq.sampleStarAnswer.situation && bq.sampleStarAnswer.result);
+      });
+
+      const fullStar = evaluateStarAnswer(
+        'Khi làm đồ án tốt nghiệp, nhiệm vụ của em là tối ưu API tìm kiếm. Em đã phân tích EXPLAIN và thêm B-Tree Index kết hợp JOIN FETCH. Kết quả là thời gian phản hồi giảm 85% từ 3 giây xuống 180ms cho 100 người dùng.'
+      );
+      assert.strictEqual(fullStar.detected.situation, true);
+      assert.strictEqual(fullStar.detected.task, true);
+      assert.strictEqual(fullStar.detected.action, true);
+      assert.strictEqual(fullStar.detected.result, true);
+      assert.strictEqual(fullStar.hasMetrics, true);
+      assert.ok(fullStar.score >= 85, `Expected STAR score >= 85, got ${fullStar.score}`);
+    });
+
+    it('RAPID_FIRE_STATEMENTS and pickRapidFireRound must return non-mutating random subsets', () => {
+      assert.ok(Array.isArray(RAPID_FIRE_STATEMENTS) && RAPID_FIRE_STATEMENTS.length >= 18);
+      const round = pickRapidFireRound(10);
+      assert.strictEqual(round.length, 10);
+      round.forEach((item) => {
+        assert.strictEqual(typeof item.isTrue, 'boolean');
+        assert.ok(item.statement && item.explanation);
+      });
+    });
+
+    it('appendPracticeHistory and summarizePracticeHistory must track score trends accurately', () => {
+      let hist = [];
+      hist = appendPracticeHistory(hist, {
+        timestamp: 1,
+        companyMaskedName: 'G***',
+        level: 'Fresher',
+        avgScore: 70,
+        decision: 'HIRE',
+        questionCount: 5
+      });
+      hist = appendPracticeHistory(hist, {
+        timestamp: 2,
+        companyMaskedName: 'A***',
+        level: 'Fresher',
+        avgScore: 86,
+        decision: 'STRONG_HIRE',
+        questionCount: 5
+      });
+
+      const summary = summarizePracticeHistory(hist);
+      assert.strictEqual(summary.totalSessions, 2);
+      assert.strictEqual(summary.bestScore, 86);
+      assert.strictEqual(summary.averageScore, 78);
+      assert.strictEqual(summary.trend, 16);
+    });
+
+    it('GitHub Actions deploy.yml must only run test and build on pull_request (skip Pages setup, artifact upload, and deploy)', () => {
+      const workflowPath = path.resolve(__dirname, '../.github/workflows/deploy.yml');
+      const workflowContent = fs.readFileSync(workflowPath, 'utf-8');
+      const prGuardMatches = workflowContent.match(/if:\s*github\.event_name\s*!=\s*'pull_request'\s*&&\s*github\.ref\s*==\s*'refs\/heads\/master'/g);
+      assert.ok(
+        prGuardMatches && prGuardMatches.length >= 3,
+        'Expected Setup Pages, Upload artifact, and Deploy job to all be guarded against pull_request events'
+      );
+    });
+  });
+
+  describe('Career Hub Interactive Feature Groups (Daily 60s, CV Doctor, Level Map, 2AM War-Room & Cram Deck)', () => {
+    const careerInteractiveModule = loadTsModule('src/data/careerHubInteractiveData.ts');
+    const {
+      DAILY_MICRO_CHALLENGES,
+      CV_PROJECT_TEMPLATES,
+      CAREER_LEVEL_PROFILES,
+      INCIDENT_WAR_ROOM_SCENARIOS,
+      QUICK_CRAM_FLASHCARDS,
+      upgradeCustomCvBullet,
+      computeCareerReadiness
+    } = careerInteractiveModule;
+
+    it('DAILY_MICRO_CHALLENGES must have at least 5 daily 60-second puzzles with 1 correct option each', () => {
+      assert.ok(Array.isArray(DAILY_MICRO_CHALLENGES) && DAILY_MICRO_CHALLENGES.length >= 5);
+      DAILY_MICRO_CHALLENGES.forEach((ch) => {
+        assert.ok(ch.id && ch.title && ch.question && ch.takeaway);
+        const correct = ch.options.filter((o) => o.isCorrect);
+        assert.strictEqual(correct.length, 1, `Daily challenge ${ch.id} must have exactly 1 correct option`);
+      });
+    });
+
+    it('CV_PROJECT_TEMPLATES and upgradeCustomCvBullet must produce Google XYZ formatted bullets', () => {
+      assert.ok(Array.isArray(CV_PROJECT_TEMPLATES) && CV_PROJECT_TEMPLATES.length >= 4);
+      CV_PROJECT_TEMPLATES.forEach((tpl) => {
+        assert.ok(tpl.id && tpl.projectType && tpl.weakBullet);
+        assert.ok(Array.isArray(tpl.upgradedBullets) && tpl.upgradedBullets.length >= 3);
+      });
+
+      const upgraded = upgradeCustomCvBullet('Xây dựng chức năng giỏ hàng bằng Spring Boot', 'performance');
+      assert.ok(upgraded.includes('Redis Cache') || upgraded.includes('JOIN FETCH'));
+    });
+
+    it('CAREER_LEVEL_PROFILES must cover Intern, Fresher, Junior, and Middle across company types', () => {
+      assert.ok(Array.isArray(CAREER_LEVEL_PROFILES) && CAREER_LEVEL_PROFILES.length >= 8);
+      const levels = new Set(CAREER_LEVEL_PROFILES.map((p) => p.level));
+      ['Intern', 'Fresher', 'Junior', 'Middle'].forEach((lvl) => {
+        assert.ok(levels.has(lvl), `Missing level profile for ${lvl}`);
+      });
+    });
+
+    it('INCIDENT_WAR_ROOM_SCENARIOS and QUICK_CRAM_FLASHCARDS must be complete and valid', () => {
+      assert.ok(Array.isArray(INCIDENT_WAR_ROOM_SCENARIOS) && INCIDENT_WAR_ROOM_SCENARIOS.length >= 2);
+      INCIDENT_WAR_ROOM_SCENARIOS.forEach((sc) => {
+        assert.ok(sc.id && sc.title && Array.isArray(sc.stages) && sc.stages.length >= 3);
+      });
+
+      assert.ok(Array.isArray(QUICK_CRAM_FLASHCARDS) && QUICK_CRAM_FLASHCARDS.length >= 8);
+      QUICK_CRAM_FLASHCARDS.forEach((fc) => {
+        assert.strictEqual(fc.threeGoldenKeywords.length, 3);
+        assert.ok(fc.oneLinerPunchline.length > 15);
+      });
+    });
+
+    it('computeCareerReadiness must compute bounded 0-100 score and rank title', () => {
+      const high = computeCareerReadiness({
+        probationPercent: 95,
+        mockBestScore: 90,
+        solvedDailyCount: 5,
+        masteredFlashcardsCount: 8
+      });
+      assert.ok(high.readinessScore >= 85);
+      assert.ok(high.rankTitle.includes('Bar Raiser'));
+    });
+
+    it('CareerHubInteractiveSuite.tsx and hub/index.tsx must transpile cleanly with 0 undeclared identifiers and exclude Shareable Developer Career Card', () => {
+      const suitePath = path.resolve(__dirname, '../src/components/career-hub/CareerHubInteractiveSuite.tsx');
+      const hubPath = path.resolve(__dirname, '../src/pages/hub/index.tsx');
+
+      assert.doesNotThrow(() => transpileCode(suitePath));
+      assert.doesNotThrow(() => transpileCode(hubPath));
+
+      assert.deepStrictEqual(Array.from(getUndeclaredIdentifiers(suitePath)), []);
+      assert.deepStrictEqual(Array.from(getUndeclaredIdentifiers(hubPath)), []);
+
+      const suiteContent = fs.readFileSync(suitePath, 'utf-8');
+      assert.ok(!suiteContent.includes('career-badge'), 'Shareable Developer Career Card should be removed');
+    });
+  });
 });
-
-

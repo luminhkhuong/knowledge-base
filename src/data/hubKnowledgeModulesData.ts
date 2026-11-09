@@ -236,7 +236,113 @@ return userRepo.findById(id)
 }`,
         interviewTip: 'Khi phỏng vấn hỏi: "Làm thế nào để điều tra lỗi OutOfMemoryError trên Production?", hãy trả lời: "1. Bật flag JVM: -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/dumps để tự động chụp Heap Dump khi sập. 2. Dùng công cụ Eclipse Memory Analyzer (MAT) hoặc VisualVM mở file .hprof, kiểm tra Dominator Tree để tìm xem Class nào đang chiếm 80-90% RAM và xem đường dẫn tham chiếu (Incoming References) để fix tận gốc".'
       }
-    ]
+,
+      {
+        id: 'virtual-threads-carrier-pinning',
+        title: '6. Virtual Threads (Java 21) & Bí Mật Cơ Chế Pinning Đánh Sập 100,000 Luồng',
+        badge: 'Java 21 LTS Đỉnh Cao',
+        summary: 'Virtual Threads siêu nhẹ (vài KB), nhưng khối synchronized hoặc lệnh native JNI sẽ ghim cứng Virtual Thread vào Carrier Thread, gây tê liệt toàn bộ hệ thống.',
+        explanation: `Trong Java 21 LTS, **Virtual Threads (Project Loom)** là bước nhảy vọt cách mạng:
+- **Platform Thread (truyền thống):** Ánh xạ 1:1 với OS Thread. Mỗi thread ngốn 1MB bộ nhớ Stack và chi phí Context Switch của nhân Linux. Tối đa chỉ tạo được vài ngàn luồng trước khi máy chủ cạn kiệt RAM.
+- **Virtual Thread:** Do JVM quản lý trên Heap, chỉ tốn vài trăm byte đến vài KB. Có thể khởi tạo hàng triệu Virtual Threads đồng thời mà không nghẽn tài nguyên.
+
+Khi một Virtual Thread thực hiện blocking I/O (như gọi HTTP, Socket, hoặc Database query), JVM tự động **unmount** trạng thái thực thi (Continuation) của nó ra khỏi OS Thread (gọi là **Carrier Thread**) và đưa Carrier Thread đi phục vụ Virtual Thread khác!
+
+🚨 **Cạm bẫy Carrier Thread Pinning (Ghim luồng):**
+Nếu Virtual Thread thực hiện blocking I/O bên trong một khối:
+1. Khối \`synchronized (lock) { ... }\`
+2. Hoặc bên trong một phương thức gốc C/C++ (\`native method\` hoặc FFM API)
+JVM sẽ **KHÔNG THỂ unmount** Virtual Thread đó ra khỏi Carrier Thread!
+Hậu quả: Virtual Thread bị ghim chặt (pinned) vào Carrier Thread. Nếu có 100 requests đồng thời bị pin, toàn bộ ForkJoinPool Carrier Threads (mặc định chỉ bằng số CPU Cores) bị khóa cứng. Toàn bộ 100,000 Virtual Threads phía sau bị chết đứng hoàn toàn!`,
+        asciiDiagram: `[Normal Virtual Thread Unmount]
+Virtual Thread #1 (I/O Block) ──> [Unmount Continuation] ──> Carrier Thread #1 Rảnh (Phục vụ VT #2)
+
+[Carrier Thread Pinning Problem]
+Virtual Thread #1 (In synchronized) ──> [PINNED! Không thể Unmount] ──> Carrier Thread #1 Bị Block 10s!
+                                                                      (Toàn bộ CPU Cores cạn kiệt luồng!)`,
+        badCodeTitle: '❌ Dùng synchronized trong I/O gây Carrier Thread Pinning',
+        badCode: `public class PaymentService {
+    // Nguy hiểm chết người với Virtual Threads trong Java 21:
+    public synchronized PaymentResult processPayment(PaymentRequest req) {
+        // Lệnh gọi HTTP hoặc JDBC blocking nằm trong khối synchronized!
+        // Virtual Thread bị PINNED chặt vào OS Carrier Thread suốt 3 giây!
+        return paymentClient.charge(req.getAmount());
+    }
+}`,
+        goodCodeTitle: '✅ Thay thế bằng ReentrantLock để Virtual Thread unmount an toàn',
+        goodCode: `public class PaymentService {
+    // ReentrantLock hoàn toàn tương thích và an toàn với Virtual Threads:
+    private final ReentrantLock lock = new ReentrantLock();
+
+    public PaymentResult processPayment(PaymentRequest req) {
+        lock.lock();
+        try {
+            // Khi blocking I/O diễn ra ở đây, JVM unmount Virtual Thread mượt mà,
+            // nhả Carrier Thread để CPU tiếp tục phục vụ hàng ngàn requests khác!
+            return paymentClient.charge(req.getAmount());
+        } finally {
+            lock.unlock();
+        }
+    }
+}`,
+        interviewTip: 'Khi phỏng vấn Senior/Staff hỏi: "Làm thế nào để phát hiện và chẩn đoán Carrier Pinning khi nâng cấp lên Java 21?", hãy trả lời ngay: "Khởi động JVM với flag: -Djdk.tracePinnedThreads=full. JVM sẽ tự động in chi tiết Stack Trace của đúng dòng code và monitor lock nào đang ghim giữ Virtual Thread mỗi khi xảy ra hiện tượng Pinning để đội ngũ thay thế sang ReentrantLock".'
+      },
+      {
+        id: 'threadlocal-leak-threadpool',
+        title: '7. Vấn Nạn Memory Leak Với ThreadLocal Trong Thread Pool Của Tomcat/Netty',
+        badge: 'Hiệu Năng & Bộ Nhớ',
+        summary: 'ThreadLocalMap dùng WeakReference cho Key nhưng StrongReference cho Value. Trong worker thread pool tái sử dụng, quên remove() sẽ giam giữ Object vĩnh viễn gây OOM.',
+        explanation: `\`ThreadLocal\` là công cụ tuyệt vời để truyền tải ngữ cảnh xuyên suốt các tầng (UserContext, TenantId, TransactionToken) mà không cần truyền tham số qua từng hàm.
+
+Mỗi Thread sở hữu một bảng băm nội bộ mang tên \`ThreadLocalMap\`.
+- **Key:** Tham chiếu yếu (\`WeakReference<ThreadLocal<?>>\`). Khi không còn biến nào trỏ tới ThreadLocal object, Garbage Collector (GC) sẽ thu hồi Key và đặt Key thành \`null\`.
+- **Value:** Tham chiếu mạnh (\`Strong Reference\`) trỏ tới đối tượng giá trị thực tế (ví dụ: \`UserContext\` chứa thông tin người dùng, quyền hạn, dữ liệu profile 10MB).
+
+🚨 **Tại sao gây ra Memory Leak thảm họa trong môi trường Web (Tomcat/Netty)?**
+1. Trong Web Server, các Thread của ThreadPool (Tomcat worker threads \`http-nio-8080-exec-*\`) **KHÔNG BAO GIỜ CHẾT** sau khi phục vụ xong 1 request. Chúng được đưa về pool để tái sử dụng cho request tiếp theo!
+2. Khi request kết thúc, nếu lập trình viên không gọi \`userContext.remove()\`, Key có thể bị GC dọn thành \`null\`, nhưng Value vẫn được giữ chặt bởi con trỏ của Thread đang sống!
+3. Sau vài ngày chạy ở môi trường tải lớn với hàng triệu requests, \`ThreadLocalMap\` của các worker threads bị lấp đầy bởi hàng chục ngàn stale entries (\`null -> Huge UserContext\`). Bộ nhớ Heap cạn kiệt dần và cuối cùng nổ lỗi \`java.lang.OutOfMemoryError: Java heap space\`!
+4. **Nguy hiểm hơn (Data Leak giữa các User):** Khi Request của User B được phân bổ vào đúng Thread cũ của User A vừa dùng, User B có thể đọc trộm toàn bộ thông tin tài khoản của User A nếu hệ thống không dọn sạch ThreadLocal!`,
+        asciiDiagram: `[Worker Thread (Live in Pool)]
+   │
+   └──> ThreadLocalMap
+           │
+           ├── Key: [WeakReference -> null]  (Đã bị GC dọn)
+           │
+           └── Value: [StrongReference] ───> [UserContext Object (Leak in Heap!)]`,
+        badCodeTitle: '❌ Quên dọn dẹp ThreadLocal sau khi kết thúc request',
+        badCode: `public class SecurityFilter implements Filter {
+    private static final ThreadLocal<UserContext> context = new ThreadLocal<>();
+
+    @Override
+    public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) {
+        UserContext user = authenticate(req);
+        context.set(user);
+
+        chain.doFilter(req, res);
+        // TỘI ÁC: Không có khối finally để context.remove()!
+        // Khi xảy ra exception hoặc request return, UserContext bị kẹt vĩnh viễn trong worker thread!
+    }
+}`,
+        goodCodeTitle: '✅ Luôn dùng try-finally để remove() tuyệt đối',
+        goodCode: `public class SecurityFilter implements Filter {
+    private static final ThreadLocal<UserContext> context = new ThreadLocal<>();
+
+    @Override
+    public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
+        try {
+            UserContext user = authenticate(req);
+            context.set(user);
+            chain.doFilter(req, res);
+        } finally {
+            // TIÊU CHUẨN VÀNG: Luôn giải phóng trong finally block!
+            // Đảm bảo dù code thành công hay ném Exception, ThreadLocalMap vẫn được dọn sạch 100%!
+            context.remove();
+        }
+    }
+}`,
+        interviewTip: 'Khi phỏng vấn hỏi: "Tại sao Java thiết kế Key của ThreadLocalMap là WeakReference mà không phải StrongReference?", hãy trả lời: "Nếu Key là StrongReference, khi ThreadLocal object ngoài ứng dụng bị gán null, ThreadLocalMap vẫn giữ chặt Key khiến Key không bao giờ được GC thu hồi. Việc dùng WeakReference giúp Key có thể bị GC dọn, cho phép hàm expungeStaleEntry() của ThreadLocalMap chủ động quét và giải phóng Value tương ứng".'
+      }    ]
   },
   {
     id: 'spring-boot',
@@ -453,7 +559,72 @@ public class UserNotificationListener {
 }`,
         interviewTip: 'Khi phỏng vấn về kiến trúc Microservices / High Concurrency, hãy giải thích: "Để tránh Distributed Monolith và Coupling, em luôn dùng Domain Events với @TransactionalEventListener(phase = AFTER_COMMIT). Nó đảm bảo tính nhất quán cuối cùng (Eventual Consistency) mà không làm rò rỉ dữ liệu khi transaction rollback".'
       }
-    ]
+,
+      {
+        id: 'transactional-unexpected-rollback',
+        title: '5. Cạm Bẫy @Transactional: Bắt Lỗi Try-Catch Nhưng Vẫn Bị UnexpectedRollbackException',
+        badge: 'Giao Dịch ACID',
+        summary: 'Method con gặp RuntimeException đánh dấu setRollbackOnly() trên Transaction hiện tại. Dù method cha có try-catch nuốt lỗi, Spring vẫn ép Rollback và ném lỗi 500!',
+        explanation: `Đây là một trong những câu hỏi phỏng vấn Senior Spring Boot hóc búa nhất và là nguồn cơn của vô số bug khó hiểu trên production.
+
+Giả sử bạn có 2 service methods:
+- \`OrderService.checkout()\` có annotation \`@Transactional\` (Mặc định \`Propagation.REQUIRED\`).
+- Method này gọi sang \`NotificationService.sendAlert()\` cũng có \`@Transactional\` (REQUIRED).
+- Vì Notification chỉ là tính năng phụ, lập trình viên bọc lệnh gọi trong khối \`try-catch\` để nếu gửi thông báo lỗi thì vẫn cho phép tạo đơn hàng thành công.
+
+🚨 **Thảm họa xảy ra:**
+1. Khi \`NotificationService.sendAlert()\` ném ra một \`RuntimeException\`, Spring Transaction Interceptor bắt được exception này và **đánh dấu cờ nội bộ:** \`TransactionStatus.setRollbackOnly()\`.
+2. Sau đó, exception văng ngược lên \`OrderService.checkout()\`. Khối \`catch (Exception e)\` nuốt trọn lỗi và tiếp tục thực hiện ghi đơn hàng.
+3. Khi \`OrderService.checkout()\` kết thúc thành công, Spring Transaction Manager chuẩn bị thực hiện lệnh \`COMMIT\` xuống cơ sở dữ liệu.
+4. Nhưng lúc này, Transaction Manager kiểm tra thấy cờ \`rollbackOnly == true\`!
+5. **Hậu quả kép:**
+   - Toàn bộ đơn hàng bị **ROLLBACK sạch sẽ**, không có dữ liệu nào được lưu!
+   - Spring ném ra lỗi kinh hoàng: \`org.springframework.transaction.UnexpectedRollbackException: Transaction silently rolled back because it has been marked as rollback-only\`!
+   - Khách hàng nhận lỗi HTTP 500 dù code nghiệp vụ của bạn tưởng rằng đã 'try-catch' an toàn!`,
+        asciiDiagram: `[OrderService.checkout() - @Transactional (REQUIRED)]
+   │
+   ├── Tạo Order Entity
+   │
+   ├── try {
+   │     NotificationService.sendAlert()  ──[Throws RuntimeException]──> [Proxy marks setRollbackOnly = true!]
+   │   } catch (Exception e) { /* nuốt lỗi */ }
+   │
+   └── Method Kết Thúc ──> [Spring kiểm tra Transaction] ──> Phát hiện cờ RollbackOnly!
+                                                         └── Ném UnexpectedRollbackException & Huỷ toàn bộ Order!`,
+        badCodeTitle: '❌ Try-catch method con cùng chung Propagation.REQUIRED',
+        badCode: `@Service
+public class OrderService {
+    @Autowired private NotificationService notificationService;
+
+    @Transactional // Transaction A bắt đầu
+    public void checkout(Order order) {
+        orderRepo.save(order);
+        try {
+            // NotificationService.sendEmail() cũng dùng @Transactional(REQUIRED)
+            // Khi ném RuntimeException, Transaction A bị đánh dấu setRollbackOnly()!
+            notificationService.sendEmail(order);
+        } catch (Exception e) {
+            log.warn("Gửi email thất bại nhưng vẫn muốn lưu order: {}", e.getMessage());
+        }
+        // Kết thúc hàm: Spring ném UnexpectedRollbackException và xóa sạch Order vừa lưu!
+    }
+}`,
+        goodCodeTitle: '✅ Dùng Propagation.REQUIRES_NEW để cô lập Transaction con',
+        goodCode: `@Service
+public class NotificationService {
+    // Tách thành một Transaction hoàn toàn độc lập với Transaction cha!
+    // Nếu gửi email lỗi, CHỈ CÓ Transaction này rollback, không làm ảnh hưởng tới Order!
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void sendEmail(Order order) {
+        emailClient.send(order.getUserEmail(), "Đơn hàng thành công");
+    }
+}
+
+// Hoặc giải pháp hiện đại hơn: Tách rời bằng Domain Events phi đồng bộ:
+// applicationEventPublisher.publishEvent(new OrderCreatedEvent(order));
+// Listener lắng nghe bằng @TransactionalEventListener(phase = AFTER_COMMIT)`,
+        interviewTip: 'Khi phỏng vấn, hãy phân tích bản chất cơ chế Transaction Proxy: "Với Propagation.REQUIRED, tất cả các method con đều tham gia vào CÙNG MỘT Physical Database Transaction duy nhất. Bất kỳ method con nào ném RuntimeException đều làm ô nhiễm cờ rollbackOnly của toàn bộ transaction. Để try-catch an toàn mà không bị UnexpectedRollbackException, bắt buộc phải dùng REQUIRES_NEW hoặc dùng TransactionTemplate programmatic".'
+      }    ]
   },
   {
     id: 'jpa-database',
@@ -666,7 +837,66 @@ if (updatedRows == 0) {
 }`,
         interviewTip: 'Khi phỏng vấn hỏi về Deadlock trong Pessimistic Lock: "Làm sao chống Deadlock khi 2 giao dịch khóa 2 tài nguyên chéo nhau (Tx1: A->B, Tx2: B->A)?". Trả lời ngay: "Áp dụng quy tắc Lock Ordering: Luôn khóa các tài nguyên theo một thứ tự toàn cục nhất quán (ví dụ sắp xếp theo ID tài khoản tăng dần rồi mới lock: Math.min(idA, idB) rồi đến Math.max(idA, idB))".'
       }
-    ]
+,
+      {
+        id: 'hibernate-dirty-checking-traps',
+        title: '5. Cơ Chế Hibernate Dirty Checking: Tại Sao Không Gọi save() Mà DB Vẫn Bị UPDATE?',
+        badge: 'Hibernate Internals',
+        summary: 'PersistenceContext tự động so sánh Entity với bản Snapshot ban đầu khi Flush. Sửa thuộc tính trong transaction sẽ tự sinh lệnh UPDATE. Tắt bằng readOnly = true để tăng 50% tốc độ đọc.',
+        explanation: `Rất nhiều lập trình viên ngạc nhiên khi thấy đoạn code Java chỉ đọc dữ liệu lên kiểm tra:
+\`User user = userRepo.findById(id).orElseThrow();\`
+\`user.calculateTempDiscount();\`
+Dù hoàn toàn **KHÔNG HỀ GỌI** \`userRepo.save(user)\`, cơ sở dữ liệu vẫn tự động sinh ra một câu lệnh \`UPDATE users SET ...\` làm thay đổi dữ liệu trên production!
+
+🔍 **Bản chất cơ chế Dirty Checking (Kiểm tra dữ liệu bẩn):**
+1. Khi một Entity được nạp vào \`PersistenceContext\` (Hibernate Session), Hibernate sẽ tạo ra **2 bản sao trong RAM**:
+   - Bản sao 1: Đối tượng Entity thực tế để bạn thao tác.
+   - Bản sao 2: Bản ghi chụp nhanh (**Loaded State Snapshot**) lưu trữ giá trị nguyên bản ban đầu từ DB.
+2. Trong suốt thời gian giao dịch (\`@Transactional\`), bất cứ khi nào bạn gọi \`setter\` (e.g. \`user.setName("Mới")\`), Entity bị đánh dấu là "Dirty".
+3. Khi transaction sắp kết thúc (trước khi commit), Hibernate tự động kích hoạt tiến trình **Flush**:
+   - Nó duyệt qua toàn bộ Entity trong PersistenceContext.
+   - So sánh từng trường của Entity với bản Snapshot tương ứng.
+   - Nếu có bất kỳ trường nào khác biệt, Hibernate tự động biên dịch và bắn câu lệnh \`UPDATE\` xuống SQL!
+
+🚨 **Những hiểm họa tiềm tàng:**
+- **Vô tình thay đổi dữ liệu:** Gọi hàm getter/logic nội bộ có tác dụng phụ (side-effect) vô tình thay đổi giá trị field.
+- **Lãng phí hiệu năng:** Duyệt và so sánh snapshot cho 10,000 entities trong bộ nhớ ngốn rất nhiều CPU và RAM.
+- **Giải pháp tối thượng cho các hàm chỉ đọc:** Luôn sử dụng \`@Transactional(readOnly = true)\`. Hibernate sẽ **hoàn toàn không tạo Snapshot**, vô hiệu hóa 100% Dirty Checking, giảm một nửa bộ nhớ RAM và tăng 30-50% tốc độ truy vấn!`,
+        asciiDiagram: `[Database] ──SELECT──> [Hibernate PersistenceContext]
+                                ├── Entity Object: { id: 1, name: "Khuong" }
+                                └── Loaded Snapshot: { id: 1, name: "Khuong" }
+                                         │
+                                [user.setName("Nam")] ──> Entity Object thành "Nam"
+                                         │
+[Tx Commit / Flush] ──> So sánh Entity ("Nam") != Snapshot ("Khuong") ──> Tự động bắn UPDATE SQL!`,
+        badCodeTitle: '❌ Transactional đọc dữ liệu nhưng để Dirty Checking chạy vô ích',
+        badCode: `@Service
+public class ReportService {
+    @Transactional // Thiếu readOnly = true!
+    public List<UserDto> exportUsers() {
+        List<User> users = userRepo.findAll(); // Nạp 20,000 users vào RAM
+        for (User u : users) {
+            // Giả sử hàm này vô tình format lại số điện thoại:
+            u.formatPhoneForDisplay(); 
+        }
+        // Hibernate tốn 2 giây so sánh 20,000 snapshots và bắn 20,000 câu UPDATE xuống DB!
+        return users.stream().map(UserDto::from).toList();
+    }
+}`,
+        goodCodeTitle: '✅ Dùng readOnly = true để vô hiệu hóa Dirty Checking',
+        goodCode: `@Service
+public class ReportService {
+    // VÔ CÙNG QUAN TRỌNG: Tắt Snapshot tracking, tối ưu hóa tốc độ đọc tối đa!
+    @Transactional(readOnly = true)
+    public List<UserDto> exportUsers() {
+        List<User> users = userRepo.findAll();
+        // Với readOnly = true, Hibernate không lưu snapshot, không chạy dirty checking,
+        // và JDBC driver có thể chuyển connection sang Read Replica an toàn!
+        return users.stream().map(UserDto::from).toList();
+    }
+}`,
+        interviewTip: 'Hãy chốt hạ với phỏng vấn viên: "@Transactional(readOnly = true) mang lại 3 lợi ích vượt trội: 1) Hibernate tắt cơ chế tạo Snapshot và Dirty Checking giúp giảm 50% RAM; 2) FlushMode chuyển thành MANUAL nên không bao giờ bắn UPDATE bậy bạ; 3) Giúp Spring RoutingDataSource định tuyến câu query sang Read Replica của MySQL/Postgres để giảm tải cho node Master".'
+      }    ]
   },
   {
     id: 'testing-qa',
@@ -805,6 +1035,129 @@ class OrderIntegrationTest {
     }
 }`,
         interviewTip: 'Nếu phỏng vấn hỏi: "Dự án của em viết Integration Test như thế nào?", hãy tự tin trả lời: "Bọn em dùng Testcontainers để chạy container PostgreSQL và Redis thật nhằm đảm bảo tính tương thích tuyệt đối với Production, kết hợp WireMock để stub các API bên thứ ba như cổng thanh toán để test cả các kịch bản timeout và lỗi 5xx". Phỏng vấn viên Senior sẽ lập tức đánh giá bạn ở level Middle/Senior!'
+      },
+      {
+        id: 'pact-contract-testing',
+        title: '4. Contract Testing (Pact): Tại Sao Mock Xanh Lè Nhưng Microservices Lên Staging Vỡ Vụn?',
+        badge: 'Microservices Testing',
+        summary: 'Mock Server chỉ kiểm tra giả định chủ quan của Consumer. Khi Provider đổi tên trường JSON hoặc Enum, Mock vẫn xanh nhưng Production sập. Contract Testing biến Consumer Expectation thành bài test tự động cho Provider.',
+        explanation: `Trong kiến trúc Microservices, kiểm thử giao tiếp giữa các dịch vụ (Service-to-Service Communication) luôn là một cơn ác mộng:
+- **Cách tiếp cận ngây thơ (Unit Test với Mockito / WireMock):** Tầng Consumer (Frontend/BFF/Service A) tự tạo stub response giả định. Lập trình viên tự tin rằng code của mình pass 100% test cases.
+- **Thực tế tàn khốc trên Production:** Đội ngũ Provider (Service B) âm thầm đổi trường \`userId\` thành \`customerId\`, hoặc đổi kiểu dữ liệu từ \`String\` sang \`UUID\`.
+- Khi deploy lên Staging, cả hai services đều có unit test xanh 100%, nhưng khi tích hợp thật thì ném lỗi \`400 Bad Request\` hoặc \`NullPointerException\` làm gãy chuỗi nghiệp vụ thanh toán!
+
+🚨 **Giải pháp Kiểm thử Hợp đồng Hướng Người dùng (Consumer-Driven Contract Testing với Pact):**
+1. **Consumer sinh Contract:** Khi Consumer chạy unit test, Pact framework tự động ghi lại các kỳ vọng (request parameters, headers, payload, response status, schema) và xuất ra một tệp tin hợp đồng \`contract.json\` (Pact File).
+2. **Pact Broker làm trung gian:** Consumer xuất bản file hợp đồng này lên Pact Broker tập trung trong quy trình CI/CD.
+3. **Provider tự động thẩm định (Verification):** Trên pipeline CI của Provider, Pact tải file hợp đồng của Consumer về và bắn các HTTP requests thật vào Controller của Provider. Nếu Provider thay đổi bất kỳ trường nào làm vi phạm hợp đồng của Consumer, build của Provider sẽ bị ĐÁNH HỎNG (Fail) ngay lập tức!
+4. **Quy tắc can-i-deploy:** Công cụ \`pact-broker can-i-deploy\` ngăn chặn tuyệt đối việc phát hành một phiên bản Provider làm vỡ các Consumer đang chạy trên Production.`,
+        asciiDiagram: `[Consumer CI Pipeline] ──> Chạy Pact Test ──> Sinh file [order-payment-contract.json]
+                                                      │
+                                                      └──> Đẩy lên [Pact Broker]
+                                                                  │
+[Provider CI Pipeline] <── Kéo Contract về thẩm định <────────────┘
+         │
+         ├── Bắn request thật vào PaymentController
+         └── Phát hiện đổi field "amount" -> "totalAmount" ──> BUILD FAILED! (Ngăn vỡ Production!)`,
+        badCodeTitle: '❌ Tự biên tự diễn Mock trong Unit Test tạo ra ảo tưởng an toàn giả tạo',
+        badCode: `@ExtendWith(MockitoExtension.class)
+class OrderServiceTest {
+    @Mock
+    private PaymentClient paymentClient; // Mockito stub chủ quan!
+
+    @Test
+    void testCheckout() {
+        // Consumer tự bịa ra format response: { "payment_id": "123", "status": "OK" }
+        // Nhưng trên thực tế, team Payment đã đổi response thành { "transactionId": 123, "state": "SUCCESS" }
+        when(paymentClient.charge(any())).thenReturn(new PaymentResponse("123", "OK"));
+
+        OrderResult res = orderService.checkout(new OrderRequest());
+        assertTrue(res.isSuccess()); // Test XANH LÈ nhưng lên Production sập 100%!
+    }
+}`,
+        goodCodeTitle: '✅ Dùng Pact Consumer DSL định nghĩa Contract ràng buộc Provider',
+        goodCode: `@PactConsumerTest
+@PactTestFor(providerName = "payment-service")
+class PaymentContractTest {
+
+    @Pact(consumer = "order-service")
+    public V4Pact createContract(PactDslWithProvider builder) {
+        return builder
+            .given("Khách hàng có đủ 500k trong tài khoản")
+            .uponReceiving("Yêu cầu trừ tiền đơn hàng")
+            .path("/api/v1/payments/charge")
+            .method("POST")
+            .body(new PactDslJsonBody()
+                .stringType("orderId", "ORD-9912")
+                .numberType("amount", 500000))
+            .willRespondWith()
+            .status(200)
+            .body(new PactDslJsonBody()
+                .stringType("transactionId", "TX-8821")
+                .stringValue("status", "SUCCESS")) // Ép buộc Provider phải trả đúng schema này!
+            .toPact(V4Pact.class);
+    }
+}`,
+        interviewTip: 'Khi phỏng vấn về Testing Microservices, hãy phân biệt rõ: "OpenAPI/Swagger chỉ là Static Schema Validation (kiểm tra cú pháp tĩnh), không thể kiểm tra được nghiệp vụ theo trạng thái. Trong khi đó, Pact Contract Testing là Dynamic Behavioral Testing: nó mô tả các kịch bản thực tế (given/when/then) và xác minh trực tiếp trên luồng CI/CD của Provider, loại bỏ nhu cầu phải dựng môi trường E2E Testing tốn kém và chậm chạp".'
+      },
+      {
+        id: 'flaky-tests-dirties-context',
+        title: '5. Trị Bệnh Flaky Test: Cạm Bẫy Lạm Dụng @DirtiesContext Làm Test Suite Chạy Từ 30s Lên 25 Phút',
+        badge: 'CI/CD Performance',
+        summary: '@DirtiesContext ép Spring tiêu hủy và khởi động lại ApplicationContext (nạp lại DataSource, Caches, Beans). Lạm dụng nó phá vỡ cơ chế Context Caching. Thay vào đó, dùng DatabaseCleaner hoặc @Sql dọn dẹp dữ liệu sạch sẽ.',
+        explanation: `Trong các dự án Spring Boot, khi test suite phình to, hiện tượng **Flaky Test (Test chập chờn - lúc xanh lúc đỏ)** bắt đầu xuất hiện do dữ liệu của bài test trước làm ô nhiễm bài test sau (State Pollution).
+
+Nhiều lập trình viên chọn giải pháp "mì ăn liền":
+Gắn \`@DirtiesContext(classMode = ClassMode.AFTER_EACH_TEST_METHOD)\` lên toàn bộ các test classes!
+
+🚨 **Tại sao đây là tội ác hủy diệt hiệu năng CI/CD?**
+1. **Cơ chế Spring TestContext Caching:** Mặc định, Spring Boot cực kỳ thông minh. Nó chỉ khởi động \`ApplicationContext\` (nạp Tomcat, HikariCP, Hibernate, Flyway, 500 Spring Beans) **ĐÚNG 1 LẦN DUY NHẤT** và tái sử dụng cho tất cả các file test có cùng cấu hình.
+2. **Cơn ác mộng DirtiesContext:** Khi bạn gắn \`@DirtiesContext\`, Spring buộc phải tiêu hủy Context cũ và khởi động lại toàn bộ từ đầu.
+3. Nếu project có 100 integration tests, mỗi lần khởi động mất 8 giây:
+   - Khi có Context Caching: Chạy mất **30 giây** tổng cộng.
+   - Khi lạm dụng \`@DirtiesContext\`: 100 x 8 giây = **13 - 25 phút**! Pipeline CI/CD bị nghẽn cứng, lập trình viên chán nản bỏ qua khâu chạy test.
+
+🛡️ **Giải pháp Chuyên nghiệp của Senior SRE / Staff Engineer:**
+- **Không khởi động lại Context:** Giữ nguyên Spring ApplicationContext sống liên tục trong suốt test suite.
+- **Tách biệt và dọn dẹp State:** Chỉ dọn dẹp các bảng dữ liệu bằng một \`DatabaseCleanerService\` (dùng lệnh \`TRUNCATE TABLE\` nhanh như chớp qua JDBC thuần trong \`@AfterEach\`) hoặc dùng \`@Sql(scripts = "cleanup.sql", executionPhase = AFTER_TEST_METHOD)\`.`,
+        asciiDiagram: `[Standard Reusable Context Caching]
+Start Context (8s) ──> Run Test 1 (50ms) ──> Run Test 2 (40ms) ──> Run Test 100 (50ms) ──> Tổng: 15s!
+
+[@DirtiesContext Disaster]
+Start (8s) ──> Test 1 ──> DESTROY! ──> Start (8s) ──> Test 2 ──> DESTROY! ... ──> Tổng: 20 PHÚT!`,
+        badCodeTitle: '❌ Lạm dụng @DirtiesContext để che đậy lỗi ô nhiễm dữ liệu',
+        badCode: `@SpringBootTest
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+class OrderIntegrationTest {
+    // Mỗi test case ép Spring khởi tạo lại HikariCP, Hibernate, Beans:
+    // Chạy 50 test cases mất toi 15 phút trên máy chủ CI!
+    @Test
+    void testCreateOrder() {
+        orderRepo.save(new Order("ORD-1"));
+        assertEquals(1, orderRepo.count());
+    }
+}`,
+        goodCodeTitle: '✅ Dùng DatabaseCleanerService TRUNCATE tables giữ Context tái sử dụng',
+        goodCode: `@SpringBootTest
+class OrderIntegrationTest {
+
+    @Autowired
+    private DatabaseCleaner databaseCleaner; // Truncate DB bằng JDBC chỉ tốn 5ms!
+
+    @AfterEach
+    void tearDown() {
+        // Chỉ dọn dẹp data rác trong database, KHÔNG tiêu hủy Spring Context!
+        databaseCleaner.truncateAllTables();
+    }
+
+    @Test
+    void testCreateOrder() {
+        orderRepo.save(new Order("ORD-1"));
+        assertEquals(1, orderRepo.count());
+    }
+}
+// 100 bài tests chạy vèo trong 10 giây trên cùng 1 ApplicationContext!`,
+        interviewTip: 'Khi phỏng vấn hỏi: "Làm thế nào để tăng tốc test suite của Spring Boot trên Jenkins/GitHub Actions từ 20 phút xuống 1 phút?", hãy trình bày 3 đòn bẩy: 1) Tận dụng Spring TestContext Caching bằng cách thống nhất cấu hình @SpringBootTest (tránh tạo ra quá nhiều cấu hình @MockBean khác nhau gây vỡ cache key); 2) Thay @DirtiesContext bằng Fast DB Truncate Script; 3) Kích hoạt tính năng tái sử dụng container Testcontainers với .withReuse(true) qua file ~/.testcontainers.properties.'
       }
     ]
   },
@@ -925,6 +1278,50 @@ git commit -m "feat(order): tích hợp tính phí vận chuyển GHN (JIRA-402)
 git commit -m "test(order): viết unit tests cho ShippingFeeCalculator"
 // PR chỉ gồm 4 files, 180 dòng thay đổi, có đính kèm ảnh chụp Swagger test`,
         interviewTip: 'Khi phỏng vấn được hỏi: "Em xử lý thế nào khi gặp Merge Conflict?", hãy tự tin trả lời: "Em checkout về nhánh develop để pull code mới nhất, sau đó sang nhánh tính năng gõ git rebase develop. Em giải quyết conflict từng commit một trên IDE, chạy lại test để đảm bảo không gãy logic, rồi mới dùng git push --force-with-lease lên remote".'
+      },
+      {
+        id: 'optional-anti-patterns-perf',
+        title: '4. Optional Tuyệt Kỹ: Tại Sao CẤM Dùng Optional Trong Field/Param & Cái Bẫy orElse() vs orElseGet()',
+        badge: 'Java Performance',
+        summary: 'Optional được thiết kế DUY NHẤT cho giá trị trả về của method (Return type). Dùng làm field khiến class không Serializable và ngốn thêm 32-48 bytes bộ nhớ. Dùng orElse() luôn thực thi hàm bên trong dù Optional có dữ liệu hay không!',
+        explanation: `Từ Java 8, \`Optional<T>\` ra đời nhằm giải quyết dứt điểm vấn nạn \`NullPointerException\`. Tuy nhiên, vì không hiểu rõ ý đồ thiết kế của cha đẻ Java (Brian Goetz), rất nhiều lập trình viên đã biến \`Optional\` thành một cơn ác mộng hiệu năng.
+
+🚨 **Cạm bẫy 1: CẤM dùng Optional làm thuộc tính của Class (Field) hoặc Entity:**
+- \`Optional\` **KHÔNG implement giao diện \`Serializable\`**! Nếu bạn đặt \`private Optional<String> middleName;\` trong một Entity hoặc DTO, bất kỳ thư viện tuần tự hóa nào (Java RMI, Hazelcast, Redis Session replication) cũng sẽ văng lỗi \`NotSerializableException\`!
+- **Lãng phí bộ nhớ khủng khiếp:** Mỗi object \`Optional\` tốn thêm 16 đến 32 bytes trên Heap memory chỉ để bọc một giá trị. Nếu bảng có 1 triệu User objects trong RAM, bạn đang lãng phí hàng chục MB bộ nhớ chỉ cho các vỏ bọc rỗng!
+
+🚨 **Cạm bẫy 2: CẤM dùng Optional làm tham số hàm (Method Parameter):**
+- Thay vì viết \`public void find(Optional<String> name)\`, bạn ép người gọi hàm phải gõ \`find(Optional.ofNullable(x))\` hoặc thậm chí người gọi có thể truyền \`find(null)\`, dẫn đến \`NullPointerException\` ngay trên chính biến Optional đó!
+
+🚨 **Cạm bẫy 3: Phân biệt sống chết giữa \`orElse()\` và \`orElseGet()\`:**
+- \`orElse(T other)\` nhận một giá trị cụ thể. Do tính chất đánh giá tham số trước khi gọi hàm (Eager Evaluation) của Java, biểu thức bên trong \`orElse()\` **LUÔN LUÔN ĐƯỢC THỰC THI** bất kể Optional có chứa giá trị hay không!
+- \`orElseGet(Supplier<? extends T> other)\` nhận một Lambda (Lazy Evaluation). Biểu thức CHỈ ĐƯỢC CHẠY khi và chỉ khi Optional thực sự rỗng (\`isEmpty()\`)!`,
+        asciiDiagram: `[Optional.orElse(computeHeavy())]
+Optional có giá trị "Khuong" ──> VẪN GỌI computeHeavy() (Query DB tốn 500ms vô ích!) ──> Trả về "Khuong"
+
+[Optional.orElseGet(() -> computeHeavy())]
+Optional có giá trị "Khuong" ──> Bỏ qua Supplier Lambda hoàn toàn (0ms overhead!) ──> Trả về "Khuong"`,
+        badCodeTitle: '❌ Dùng orElse() kích hoạt câu truy vấn DB thừa thãi',
+        badCode: `// Tìm user trong Cache, nếu không có thì gọi DB:
+User user = userCache.findOptional("u-101")
+    .orElse(userRepository.queryHeavyUserFromDatabase("u-101"));
+// THẢM HỌA: Dù trong Cache ĐÃ CÓ user, Java VẪN chạy câu query DB nặng nề ở orElse!
+// Làm nhân đôi tải xuống Database không cần thiết!`,
+        goodCodeTitle: '✅ Dùng orElseGet() với Lambda đánh giá lười (Lazy Evaluation)',
+        goodCode: `// orElseGet nhận Supplier: CHỈ query DB khi Cache trả về Optional.empty()!
+User user = userCache.findOptional("u-101")
+    .orElseGet(() -> userRepository.queryHeavyUserFromDatabase("u-101"));
+
+// Với Entity / Field: Luôn dùng null check truyền thống hoặc @Nullable:
+public class User {
+    private String middleName; // KHÔNG dùng Optional<String> ở đây!
+
+    // Chỉ dùng Optional ở getter trả về nếu muốn ép người gọi phải check null:
+    public Optional<String> getMiddleName() {
+        return Optional.ofNullable(middleName);
+    }
+}`,
+        interviewTip: 'Khi phỏng vấn hỏi: "Tại sao Optional không nên dùng cho trường Entity của Hibernate?", hãy trả lời: "Có 2 lý do cốt lõi: 1) Optional không implement Serializable nên phá vỡ cơ chế Cache L2 và Session Replication; 2) Hibernate sử dụng Reflection và Proxy để lazy loading, việc bọc Optional quanh getter/setter làm Hibernate không thể inject bytecode Proxy một cách tự nhiên".'
       }
     ]
   },
@@ -1243,7 +1640,82 @@ public class TicketBookingService {
 }`,
         interviewTip: 'Khi phỏng vấn hỏi: "Thuật toán Redlock là gì?", hãy trả lời: "Redlock là thuật toán do tác giả Redis đề xuất để đảm bảo độ tin cậy của Distributed Lock trên cụm Redis đa node (Cluster/Sentinel), yêu cầu lấy được lock trên đa số máy (N/2 + 1 node) để tránh trường hợp Master bị crash khi dữ liệu chưa kịp replicate sang Slave".'
       }
-    ]
+,
+      {
+        id: 'redis-xfetch-cache-stampede',
+        title: '4. Chống Thảm Họa Cache Stampede Bằng Thuật Toán Xác Suất XFetch (Không Cần Lock)',
+        badge: 'Kiến Trúc Chịu Tải',
+        summary: 'Khi Hot-Key hết hạn, 100,000 request ập vào DB. Thay vì dùng Mutex Lock gây nghẽn CPU, thuật toán XFetch tự động tính toán lại dữ liệu ở luồng nền trước khi key chạm đáy hết hạn.',
+        explanation: `Khi một dữ liệu quan trọng có lưu lượng truy cập khổng lồ (Hot-Key như cấu hình hệ thống, bảng giá vàng, vé concert) hết hạn trong Redis, thảm họa **Cache Stampede (Cache Breakdown)** sẽ xảy ra:
+- Hàng ngàn requests đồng thời nhận kết quả \`cache miss\`.
+- Tất cả các requests này đồng loạt đập xuống Database để query và tính toán lại cùng một dữ liệu.
+- Cơ sở dữ liệu bị bão tải, CPU nhảy lên 100% và sập toàn bộ hệ thống!
+
+**Cách xử lý truyền thống (Mutex Lock / Distributed Lock):**
+Dùng Redis Lock (\`SETNX\`) để chỉ cho 1 request được phép xuống Database, các requests khác phải chờ đợi (busy spin hoặc retry).
+⚠️ *Nhược điểm:* Khi có 50,000 requests/giây, việc 49,999 threads bị block chờ lock sẽ làm cạn kiệt Tomcat thread pool và tăng độ trễ p99 lên hàng ngàn mili-giây!
+
+🔥 **Đỉnh cao kiến trúc: Thuật toán Xác Suất XFetch (Probabilistic Early Expiration):**
+Thuật toán do các kỹ sư đại học Stanford và Varnish Cache nghiên cứu, được áp dụng tại các hệ thống lớn (Wikipedia, Netflix):
+Công thức đánh giá:
+$$\text{currentTime} - (\beta \times \delta \times \ln(\text{rand}())) > \text{expiryTime}$$
+Trong đó:
+- \`delta\` ($\delta$): Thời gian tính toán lại dữ liệu (tính bằng mili-giây, ví dụ query DB mất 50ms).
+- \`beta\` ($\beta$): Hệ số xông xáo (thường đặt là 1.0).
+- \`rand()\`: Số thực ngẫu nhiên từ $(0, 1]$.
+- \`ln(rand())\`: Phân phối logarit tự nhiên.
+
+**Cơ chế hoạt động kỳ diệu:**
+Càng gần đến thời điểm hết hạn (TTL còn 5s, 3s, 1s), giá trị ngẫu nhiên sẽ khiến một request may mắn nào đó phát hiện điều kiện kích hoạt.
+Request đó sẽ âm thầm tính toán lại dữ liệu mới và cập nhật gia hạn Redis **TRƯỚC KHI KEY THỰC SỰ HẾT HẠN**!
+Hàng ngàn requests khác vẫn liên tục đọc dữ liệu cũ trong cache mà không hề bị gián đoạn hay phải chờ lock một mili-giây nào!`,
+        asciiDiagram: `[Timeline of Cache Key TTL = 60s]
+0s ────────────────────────────── 55s ──────── 58s ─────── 60s (Expire)
+                                   │            │
+                                   [XFetch Test] ──> Xác suất tính lại cache ngầm tăng vọt!
+                                   Request A may mắn kích hoạt ──> Async Query DB & Gia hạn TTL mới!
+                                   (Các requests B, C, D vẫn đọc cache mượt mà 0ms latency!)`,
+        badCodeTitle: '❌ Dùng Mutex Lock gây thắt cổ chai khi có tải cực lớn',
+        badCode: `public Product getProduct(Long id) {
+    Product p = redis.get("prod:" + id);
+    if (p == null) {
+        // 50,000 threads cùng tranh nhau lấy Lock này:
+        // Gây nghẽn CPU, thread pool cạn kiệt và latency nhảy vọt lên 5,000ms!
+        if (redis.setNx("lock:prod:" + id, "1", 5, TimeUnit.SECONDS)) {
+            try {
+                p = db.findById(id);
+                redis.set("prod:" + id, p, 60, TimeUnit.SECONDS);
+            } finally {
+                redis.del("lock:prod:" + id);
+            }
+        } else {
+            Thread.sleep(100); // Retry loop
+            return getProduct(id);
+        }
+    }
+    return p;
+}`,
+        goodCodeTitle: '✅ Triển khai thuật toán xác suất XFetch mượt mà không lock',
+        goodCode: `public Product getProductWithXFetch(Long id) {
+    CacheRecord<Product> record = redis.getRecord("prod:" + id);
+    if (record == null) {
+        return reloadAndSet(id); // Cold start
+    }
+
+    // Thuật toán XFetch: delta = computeDuration, beta = 1.0
+    double xfetchScore = System.currentTimeMillis() - 
+        (record.getComputeDurationMs() * 1.0 * Math.log(ThreadLocalRandom.current().nextDouble()));
+
+    // Nếu điều kiện thỏa mãn trước khi hết hạn, một worker sẽ tính lại ngầm:
+    if (xfetchScore > record.getExpiryTimestamp()) {
+        asyncExecutor.submit(() -> reloadAndSet(id)); // Làm mới ở luồng nền!
+    }
+
+    // Trả về dữ liệu ngay lập tức trong 0.2ms, không bao giờ bắt client phải chờ!
+    return record.getData();
+}`,
+        interviewTip: 'Khi phỏng vấn kiến trúc High Concurrency hỏi về Cache Breakdown: "Làm sao chống nghẽn khi Hot-Key hết hạn mà không dùng Lock?", hãy vẽ ngay công thức XFetch: "Bằng cách sử dụng thuật toán Probabilistic Early Expiration (XFetch), hệ thống biến việc làm mới cache thành một tiến trình ngẫu nhiên liên tục ở luồng nền. Cache không bao giờ thực sự chạm đáy hết hạn đối với client, triệt tiêu 100% chi phí locking".'
+      }    ]
   },
   {
     id: 'kafka-event-driven',
@@ -1439,6 +1911,57 @@ public class SafeOrderProducer {
     }
 }`,
         interviewTip: 'Câu hỏi bẫy phỏng vấn: "Điều gì xảy ra nếu ta tăng số lượng Partition của một Topic đang chạy trên Production?". Trả lời: "Thuật toán murmur2(key) % new_partitions sẽ ra kết quả partition khác với trước đó! Các message mới của cùng 1 orderId có thể bị chuyển sang partition khác, làm mất tính bảo đảm thứ tự với các message cũ chưa tiêu thụ hết. Vì vậy, tăng partition cần phải lên kế hoạch xả cạn consumer lag hoặc dùng custom partitioner".'
+      },
+      {
+        id: 'kafka-zombie-fencing-eos',
+        title: '4. Zombie Producer Fencing & Exactly-Once Semantics (EOS): Chống Ghi Đè Ma Khi Mạng Bị Chập Chờn',
+        badge: 'Distributed Consistency',
+        summary: 'Khi Producer bị Network Partition hoặc GC Pause dài, Broker tưởng nó đã chết và cấp quyền cho Producer mới. Khi Producer cũ hồi sinh, nó trở thành "Zombie" bắn dữ liệu ma. Transaction Coordinator dùng Producer Epoch để chặn đứng Zombie (Fencing).',
+        explanation: `Trong các hệ thống thanh toán hoặc sàn chứng khoán, yêu cầu **Exactly-Once Semantics (EOS)** là bắt buộc: Một giao dịch tài chính chỉ được ghi nhận đúng một lần duy nhất, không mất mát và không trùng lặp.
+
+🚨 **Thảm họa Zombie Producer (Tiến trình ma):**
+1. Giả sử Producer A đang xử lý dở một transaction trừ tiền. Bất ngờ, máy chủ của Producer A bị treo bởi một đợt Full GC Pause kéo dài 45 giây hoặc bị cô lập mạng (Network Partition).
+2. Kafka Broker hết thời gian \`transaction.timeout.ms\`, coi như Producer A đã chết, lập tức giải phóng tài nguyên và cho phép Producer B khởi động lên để thế chỗ xử lý tiếp công việc.
+3. Bất ngờ, Producer A tỉnh lại sau đợt GC Pause! Do không hề biết mình đã bị phế truất, Producer A tiếp tục đẩy nốt dữ liệu giao dịch cũ xuống Kafka Broker!
+4. **Hậu quả:** Nếu không có cơ chế ngăn chặn, dữ liệu cũ của Producer A (Zombie) sẽ ghi đè hoặc làm ô nhiễm dữ liệu mới của Producer B, dẫn đến việc tài khoản bị trừ tiền 2 lần!
+
+🛡️ **Vũ khí tối thượng: Zombie Fencing (Hàng rào phong tỏa):**
+- Kafka giải quyết bài toán này thông qua **Transaction Coordinator** và cơ chế cấp phát số hiệu thế hệ (**Epoch Number**).
+- Mỗi khi một Producer khởi động với cùng một \`transactional.id\`, Coordinator sẽ tăng biến \`producer_epoch\` lên 1 (ví dụ: từ 0 lên 1).
+- Khi Producer A (Zombie mang \`epoch = 0\`) gửi request tới Broker, Broker kiểm tra thấy \`epoch\` trong metadata đã lên 1. Broker lập tức từ chối request và ném lỗi \`ProducerFencedException\`!
+- Producer A bị cô lập hoàn toàn (fenced off), buộc phải tự sát mà không thể gây tổn hại cho hệ thống.`,
+        asciiDiagram: `[Producer A (Epoch=0)] ──(Network Lag 40s / GC Pause)──> Broker Timeout!
+                                                             │
+[Producer B (Epoch=1)] ──(Đăng ký Transactional ID cũ) ──> Broker cấp Epoch = 1
+                                                             │
+[Producer A Tỉnh Dậy]  ──(Gửi message với Epoch=0) ───────> Broker từ chối: ProducerFencedException! (FENCED!)`,
+        badCodeTitle: '❌ Producer thông thường không có Transactional ID gây duplicate khi retry',
+        badCode: `// Producer cấu hình mặc định (At-least-once):
+Properties props = new Properties();
+props.put("acks", "all");
+props.put("retries", 3);
+// Khi mạng chập chờn, Producer retry gửi lại bản ghi thanh toán.
+// Broker nhận được 2 lần khiến khách hàng bị trừ tiền 2 lần!`,
+        goodCodeTitle: '✅ Bật Exactly-Once Semantics với Transactional ID & Epoch Fencing',
+        goodCode: `Properties props = new Properties();
+props.put("bootstrap.servers", "kafka:9092");
+props.put("transactional.id", "tx-payment-service-pod-1"); // Định danh Producer cố định
+props.put("enable.idempotence", "true"); // Bật Idempotent Producer
+
+KafkaProducer<String, String> producer = new KafkaProducer<>(props);
+producer.initTransactions(); // Đăng ký Epoch với Transaction Coordinator!
+
+try {
+    producer.beginTransaction();
+    producer.send(new ProducerRecord<>("account-debits", userId, amountJson));
+    producer.send(new ProducerRecord<>("payment-audit", userId, "SUCCESS"));
+    producer.commitTransaction(); // 2-Phase Commit nguyên tử!
+} catch (ProducerFencedException e) {
+    // Đã có instance mới thay thế, instance này bắt buộc phải dừng hoạt động ngay:
+    producer.close();
+    System.exit(1);
+}`,
+        interviewTip: 'Khi phỏng vấn về Exactly-Once trong Kafka, hãy nêu rõ 3 trụ cột cấu thành: 1) Idempotent Producer (PID + Sequence Number) chống trùng lặp giữa Producer và Broker; 2) Transaction Coordinator (2-Phase Commit trên topic __transaction_state) đảm bảo ghi nhiều partition nguyên tử; 3) Consumer bật isolation.level = read_committed để chỉ đọc các bản ghi đã commit thành công, bỏ qua các bản ghi thuộc transaction bị Abort.'
       }
     ]
   },
@@ -1653,6 +2176,118 @@ public class Account {
     private String lastModifiedBy; // Tự động lấy username từ Spring SecurityContext!
 }`,
         interviewTip: 'Người phỏng vấn hỏi: "Tại sao không nên băm (hash) mật khẩu bằng MD5 hay SHA-256?". Hãy trả lời: "MD5 và SHA-256 là các thuật toán tính toán quá nhanh (hàng tỷ phép tính/giây trên GPU), rất dễ bị bẻ khóa bằng Rainbow Table hoặc Brute-force. Mật khẩu bắt buộc phải được băm bằng các thuật toán Key Derivation Function chậm rãi và có Salt ngẫu nhiên như BCrypt, PBKDF2 hoặc Argon2 để chống tấn công phần cứng chuyên dụng".'
+      },
+      {
+        id: 'idor-object-level-security',
+        title: '4. Lỗ Hổng IDOR: Tại Sao hasRole(\'USER\') Vẫn Khiến Doanh Nghiệp Lộ Toàn Bộ Hóa Đơn Khách Hàng?',
+        badge: 'OWASP Top 1 P0',
+        summary: 'Kiểm tra Role (RBAC) chỉ xác minh người dùng có quyền gọi API hay không, chứ KHÔNG xác minh người dùng có quyền sở hữu đối tượng cụ thể. Thay ID trên URL (/invoices/1001 -> 1002) sẽ xem được tài liệu của đối thủ!',
+        explanation: `Trong bảng xếp hạng bảo mật OWASP API Security Top 10, **Broken Object Level Authorization (BOLA / IDOR - Insecure Direct Object Reference)** luôn giữ vị trí **Số 1** về mức độ phổ biến và thiệt hại tài chính.
+
+🚨 **Kịch bản tấn công kinh điển:**
+1. Khách hàng A đăng nhập vào hệ thống, xem hóa đơn của mình tại đường dẫn: \`GET /api/v1/invoices/1001\`.
+2. Kiểm tra bảo mật tầng Gateway và Controller:
+   \`@PreAuthorize("hasRole('CUSTOMER')")\`
+   ➔ Khách hàng A có token JWT hợp lệ với quyền CUSTOMER. Request vượt qua cổng bảo vệ dễ dàng.
+3. Khách hàng A tò mò sửa ID trên thanh công cụ thành: \`GET /api/v1/invoices/1002\`.
+4. **Lỗ hổng chết người:** Trong tầng Service, lập trình viên viết:
+   \`Invoice inv = invoiceRepository.findById(1002).orElseThrow();\`
+   \`return InvoiceDto.from(inv);\`
+5. Kết quả: Khách hàng A đọc được toàn bộ hợp đồng, số tiền, địa chỉ nhà và số tài khoản ngân hàng của Khách hàng B!
+6. Hacker chỉ cần viết một script Python vòng lặp từ \`id = 1\` đến \`1,000,000\` để cào sạch toàn bộ cơ sở dữ liệu khách hàng của công ty trong một đêm!
+
+🛡️ **Kiến trúc Phòng thủ Chuẩn Mực:**
+- **Không bao giờ tin tưởng ID từ Client:** Không bao giờ truy vấn chỉ bằng khóa chính \`findById(id)\`.
+- **Ràng buộc Quyền Sở Hữu (Ownership Scoping):** Mọi câu query bắt buộc phải kèm điều kiện người dùng hiện tại:
+  \`SELECT * FROM invoices WHERE id = :id AND user_id = :currentUserId\`
+- **Phân quyền dựa trên thuộc tính (ABAC):** Sử dụng SpEL trong Spring Security:
+  \`@PreAuthorize("@invoiceSecurity.isOwner(#id, authentication.principal)")\`.`,
+        asciiDiagram: `[Attacker (User 101)] ──> GET /invoices/999 (Của User 202)
+                               │
+[Spring Security Filter] ──────┴──> Token JWT hợp lệ, Role = 'CUSTOMER' ➔ CHO QUA!
+                               │
+[Insecure Service] ────────────┴──> invoiceRepo.findById(999) ➔ LỘ DỮ LIỆU CỦA ĐỐI THỦ! (IDOR BOLA)
+
+[Secure Scoped Service] ───────┴──> invoiceRepo.findByIdAndUserId(999, 101) ➔ 404 NOT FOUND / 403 FORBIDDEN!`,
+        badCodeTitle: '❌ Chỉ kiểm tra Role mà không kiểm tra quyền sở hữu đối tượng',
+        badCode: `@GetMapping("/invoices/{id}")
+@PreAuthorize("hasRole('USER')") // Chỉ kiểm tra quyền chung chung!
+public InvoiceDto getInvoice(@PathVariable Long id) {
+    // TỘI ÁC: Truy vấn thẳng bằng ID mà không kiểm tra xem hóa đơn này thuộc về ai!
+    return invoiceRepo.findById(id)
+        .map(InvoiceDto::from)
+        .orElseThrow(() -> new NotFoundException("Invoice not found"));
+}`,
+        goodCodeTitle: '✅ Truy vấn bắt buộc ràng buộc TenantId/UserId hoặc dùng SpEL check',
+        goodCode: `@GetMapping("/invoices/{id}")
+public InvoiceDto getInvoice(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal currentUser) {
+    // TIÊU CHUẨN AN TOÀN TUYỆT ĐỐI:
+    // Buộc database phải lọc đồng thời cả ID hóa đơn và User ID của người đang đăng nhập:
+    return invoiceRepo.findByIdAndUserId(id, currentUser.getId())
+        .map(InvoiceDto::from)
+        .orElseThrow(() -> new AccessDeniedException("Bạn không có quyền truy cập hóa đơn này"));
+}
+
+// Hoặc sử dụng Spring Security Custom Evaluator:
+// @PreAuthorize("@securityService.isInvoiceOwner(#id, principal.id)")`,
+        interviewTip: 'Khi phỏng vấn về Security API, hãy phân biệt rạch ròi: "RBAC (Role-Based Access Control) chỉ kiểm tra quyền theo chức năng (Functional Authorization - người này có được bấm nút Xóa không). Còn BOLA/IDOR là lỗi Object-Level Authorization (người này có được xóa bản ghi cụ thể mang ID này không). Trong kiến trúc đa người thuê (Multi-Tenancy), chúng em dùng Hibernate @Filter hoặc Postgres Row-Level Security (RLS) để tự động thêm WHERE tenant_id = ? vào 100% câu SQL".'
+      },
+      {
+        id: 'ssrf-dns-rebinding-defense',
+        title: '5. Hiểm Họa SSRF & DNS Rebinding Khi Gọi Webhook Hoặc Tải Ảnh Người Dùng',
+        badge: 'Cloud Security',
+        summary: 'Chức năng nhập Webhook URL hoặc tải ảnh đại diện từ link ngoài có thể biến server thành bàn đạp cho hacker quét mạng nội bộ (AWS Metadata 169.254.169.254 / K8s etcd). Hacker dùng DNS Rebinding để vượt qua kiểm tra IP đen.',
+        explanation: `**Server-Side Request Forgery (SSRF)** là lỗ hổng bảo mật cho phép kẻ tấn công ép máy chủ Backend phát sinh các HTTP requests tới những địa chỉ nội bộ mà bên ngoài Internet không thể truy cập được.
+
+🚨 **Cách hacker đánh cắp tài khoản AWS qua SSRF:**
+1. Ứng dụng có tính năng: *"Nhập URL ảnh đại diện để hệ thống tải về"* hoặc *"Cấu hình Webhook URL khi có đơn hàng mới"*.
+2. Hacker nhập URL: \`http://169.254.169.254/latest/meta-data/iam/security-credentials/\`.
+3. Địa chỉ \`169.254.169.254\` là địa chỉ **Link-Local IP của AWS Instance Metadata Service (IMDS)** chỉ các máy chủ nội bộ EC2 mới gọi được.
+4. Backend vô tư dùng \`httpClient.get(url)\` tải về, và trả kết quả cho hacker: Toàn bộ AWS Access Key, Secret Key của máy chủ bị đánh cắp trong 1 giây!
+
+🛡️ **Bẫy DNS Rebinding (Tại sao chỉ kiểm tra IP blacklist trước khi gọi lại thất bại?):**
+- Lập trình viên thông minh hơn: Phân giải DNS tên miền thành IP, kiểm tra nếu là IP riêng tư (\`127.0.0.1\`, \`10.x.x.x\`, \`169.254.x.x\`) thì từ chối.
+- **Hacker bẻ gãy phòng thủ bằng DNS Rebinding:**
+  1. Hacker dựng một máy chủ DNS riêng và mua tên miền \`evil-rebind.com\`.
+  2. Lần 1 (Khi hàm check IP của bạn chạy): DNS server của hacker trả về IP công cộng hợp lệ: \`8.8.8.8\` với \`TTL = 0\` (không lưu cache). Hàm check IP của bạn thấy \`8.8.8.8\` hợp lệ ➔ Cho phép!
+  3. Lần 2 (Ngay sau đó 1ms, khi \`httpClient.get()\` thực sự mở kết nối TCP): Máy chủ DNS của hacker lập tức trả về IP nội bộ \`169.254.169.254\`!
+  4. Máy chủ backend kết nối thẳng vào AWS Metadata Service và làm rò rỉ toàn bộ thông tin cơ mật!`,
+        asciiDiagram: `[Attacker] ──> Gửi URL: http://evil-rebind.com/keys (DNS TTL = 0)
+                  │
+[Check 1: IP Validation] ──> Phân giải DNS lần 1 ──> Trả về 8.8.8.8 (Hợp lệ ➔ Passed!)
+                  │
+[Check 2: HTTP Client Connect] ──> Phân giải DNS lần 2 ──> Trả về 169.254.169.254!
+                  │
+                  └──> Backend vô tình kết nối AWS Metadata và gửi trọn Secret Keys cho Hacker!`,
+        badCodeTitle: '❌ Tự phân giải DNS rồi dùng HttpClient mặc định kết nối',
+        badCode: `public byte[] fetchUserAvatar(String avatarUrl) throws Exception {
+    URL url = new URL(avatarUrl);
+    InetAddress address = InetAddress.getByName(url.getHost());
+    // Kiểm tra sơ sài:
+    if (address.isLoopbackAddress() || address.isSiteLocalAddress()) {
+        throw new SecurityException("Địa chỉ IP nội bộ bị cấm!");
+    }
+    // DÍNH BẪY DNS REBINDING:
+    // RestTemplate lại phân giải DNS lần 2 và trỏ vào 169.254.169.254!
+    return restTemplate.getForObject(avatarUrl, byte[].class);
+}`,
+        goodCodeTitle: '✅ Ghim chặt IP đã kiểm tra (IP Pinning) hoặc dùng Egress Proxy an toàn',
+        goodCode: `public byte[] secureFetchUrl(String userUrl) throws Exception {
+    URI uri = new URI(userUrl);
+    // 1. Phân giải DNS ĐÚNG 1 LẦN DUY NHẤT:
+    InetAddress[] addresses = DnsResolver.resolveAll(uri.getHost());
+    for (InetAddress addr : addresses) {
+        if (isPrivateOrReserved(addr)) { // Kiểm tra 127.0.0.1, 10.0.0.0/8, 169.254.0.0/16...
+            throw new SecurityException("Phát hiện địa chỉ nội bộ không an toàn: " + addr);
+        }
+    }
+
+    // 2. KẾT NỐI TRỰC TIẾP VÀO IP ĐÃ VALIDATE (Triệt tiêu DNS Rebinding):
+    // Thay vì kết nối theo hostname, ta kết nối socket trực tiếp tới addresses[0].getHostAddress()
+    // và gán Header "Host: uri.getHost()" để đảm bảo HTTP protocol hợp lệ!
+    return safeHttpClient.executeDirectIp(addresses[0], uri);
+}`,
+        interviewTip: 'Khi phỏng vấn về Cloud & Infrastructure Security, hãy chốt hạ các lớp phòng thủ SSRF nhiều tầng (Defense in Depth): 1) Nâng cấp AWS IMDS lên IMDSv2 (bắt buộc phải có token qua PUT request trước khi GET, vô hiệu hóa 99% tấn công SSRF cơ bản); 2) Cấu hình Kubernetes Egress NetworkPolicy chặn toàn bộ traffic từ App Pod tới dải 169.254.169.254/32; 3) Triển khai Dedicated DMZ Forwarding Proxy chỉ cho phép gọi ra ngoài Internet.'
       }
     ]
   }
@@ -2410,7 +3045,139 @@ public class HybridNotificationService {
 }`,
         interviewTip: 'Khi phỏng vấn System Design hỏi: "Hệ thống thông báo đẩy (Push Notification) đến điện thoại qua FCM/APNS có gì khác với bảng tin?", trả lời: "Push Notification không thể gửi đồng loạt 10 triệu tin tức thì qua kết nối TCP. Ta phải phân chia danh sách thiết bị thành các chunk (ví dụ 1,000 tokens/chunk), đẩy vào hàng đợi phân tán Kafka với nhiều Consumer Pods chạy song song để gửi batch API lên Apple APNS và Google FCM, kết hợp Circuit Breaker để tránh bị Apple/Google rate-limit".'
       }
-    ]
+,
+      {
+        id: 'timing-attack-constant-time',
+        title: '9. Phòng Chống Tấn Công Timing Attack: Tại Sao String.equals() Bị Hacker Bẻ Khóa?',
+        badge: 'Bảo Mật Cốt Lõi',
+        summary: 'String.equals() trả về false ngay ở ký tự đầu tiên bị sai. Hacker đo thời gian mạng ở mức nano-giây để bẻ khóa từng ký tự token. Bắt buộc dùng MessageDigest.isEqual().',
+        explanation: `Một lỗi bảo mật tưởng chừng vô hại nhưng có thể phá hủy toàn bộ hệ thống xác thực API Key, Webhook Secret hoặc Chữ ký điện tử (Signature Verification): **Tấn công theo thời gian (Timing Attack)**.
+
+Khi bạn so sánh hai chuỗi ký tự bằng:
+\`userProvidedToken.equals(expectedSecretToken)\`
+Hãy nhìn vào cách thức cài đặt của \`String.equals()\` trong Java:
+\`\`\`java
+for (int i = 0; i < len; i++) {
+    if (value[i] != other[i]) {
+        return false; // DỪNG LẠI NGAY LẬP TỨC (Short-Circuit)!
+    }
+}
+\`\`\`
+
+🚨 **Cách hacker bẻ khóa từng ký tự bí mật:**
+1. Kẻ tấn công gửi chuỗi token bắt đầu bằng \`A...\`: Nếu ký tự đầu tiên sai, hàm \`equals()\` dừng lại và trả về \`false\` chỉ sau 1 phép so sánh.
+2. Chúng tiếp tục thử \`B...\`, \`C...\`: Khi ký tự đầu tiên đúng, hàm \`equals()\` phải tiếp tục so sánh đến ký tự thứ hai rồi mới trả về \`false\`.
+3. Nhờ sự hỗ trợ của các công cụ phân tích thống kê mạng, hacker đo lường thời gian phản hồi ở mức nano-giây. Thời gian phản hồi của ký tự đúng sẽ **dài hơn một cách nhất quán** so với ký tự sai!
+4. Hacker lặp lại quy trình này để lần lượt đoán ra ký tự thứ 1, thứ 2, thứ 3... và bẻ khóa toàn bộ Secret Token 64 ký tự trong vòng vài tiếng đồng hồ mà không cần brute-force toàn bộ không gian mẫu!
+
+🛡️ **Giải pháp phòng thủ: Constant-Time Comparison**
+Luôn luôn so sánh chuỗi trong thời gian cố định (Constant Time), duyệt qua TOÀN BỘ các ký tự bất kể ký tự đầu tiên có đúng hay sai.`,
+        asciiDiagram: `[String.equals() - Short Circuit]
+Target:   [S E C R E T]
+Input 1:  [A X X X X X] ──> Dừng ngay ở ký tự 0 ──> Tốn 5ns  (Hacker biết 'A' sai!)
+Input 2:  [S X X X X X] ──> So sánh tiếp ký tự 1 ──> Tốn 15ns (Hacker phát hiện 'S' đúng!)
+
+[Constant-Time - MessageDigest.isEqual()]
+Duyệt qua TOÀN BỘ độ dài mảng byte ──> Luôn luôn tốn đúng 50ns dù đúng hay sai! (Hacker mù thông tin!)`,
+        badCodeTitle: '❌ Dùng String.equals() để xác thực Secret / HMAC Signature',
+        badCode: `public boolean verifyWebhookSignature(String signatureHeader, String payload) {
+    String computedSignature = hmacSha256(payload, secretKey);
+    // LỖ HỔNG TIMING ATTACK NGHIÊM TRỌNG:
+    // So sánh dừng sớm (short-circuit) làm rò rỉ thời gian phản hồi cho kẻ tấn công!
+    return computedSignature.equals(signatureHeader);
+}`,
+        goodCodeTitle: '✅ Dùng MessageDigest.isEqual() so sánh thời gian cố định',
+        goodCode: `public boolean verifyWebhookSignature(String signatureHeader, String payload) {
+    byte[] computed = hmacSha256(payload, secretKey).getBytes(StandardCharsets.UTF_8);
+    byte[] clientSig = signatureHeader.getBytes(StandardCharsets.UTF_8);
+
+    // TIÊU CHUẨN BẢO MẬT TUYỆT ĐỐI:
+    // MessageDigest.isEqual() so sánh theo thuật toán Constant-Time:
+    // int result = 0;
+    // for (int i = 0; i < len; i++) result |= computed[i] ^ clientSig[i];
+    // return result == 0;
+    return MessageDigest.isEqual(computed, clientSig);
+}`,
+        interviewTip: 'Khi phỏng vấn về Security / API Authentication, hãy nhấn mạnh: "Mọi thao tác so sánh token, password hash, API key hoặc chữ ký HMAC bắt buộc phải sử dụng Constant-Time Comparison qua MessageDigest.isEqual(). Nó đảm bảo thời gian thực thi không phụ thuộc vào vị trí ký tự sai lệch, triệt tiêu 100% kỹ thuật tấn công Side-Channel Timing Attack".'
+      },
+      {
+        id: 'priority-queue-starvation',
+        title: '10. Hàng Đợi Ưu Tiên Phân Tán (VIP Queue) & Thuật Toán Chống Bỏ Đói (Starvation)',
+        badge: 'Thiết Kế Hệ Thống',
+        summary: 'Hệ thống hàng đợi ưu tiên cho khách VIP rất dễ làm khách thường bị chết đói vĩnh viễn khi có bão VIP. Giải pháp: Weighted Fair Queueing (WFQ) tỷ lệ 3:1 bằng Redis ZSET.',
+        explanation: `Trong các hệ thống thương mại điện tử hoặc ngân hàng số, khách hàng VIP (hoặc các đơn hàng thanh toán giá trị cao) luôn được ưu tiên xử lý trước khách hàng thông thường.
+
+Cách thiết kế ngây thơ:
+Dùng 2 queues: \`vip_queue\` và \`regular_queue\`.
+Consumer viết logic:
+\`\`\`java
+if (!vipQueue.isEmpty()) {
+    process(vipQueue.pop());
+} else {
+    process(regularQueue.pop());
+}
+\`\`\`
+
+🚨 **Vấn nạn Bỏ Đói (Starvation / Livelock):**
+Vào các đợt cao điểm flash-sale hoặc ngày lễ, lượng khách hàng VIP tăng đột biến khiến \`vip_queue\` liên tục đầy ắp thông điệp.
+Theo logic trên, \`regular_queue\` **hoàn toàn không có cơ hội được xử lý**! Hàng triệu đơn hàng của khách hàng thường bị ứ đọng nhiều giờ liền, gây trễ nợ (SLA breach) và khách hàng lũ lượt hủy đơn!
+
+🚀 **Giải pháp Kiến trúc Đỉnh cao: Weighted Fair Queueing (WFQ)**
+Phân bổ năng lực xử lý theo tỷ lệ trọng số (Weight Ratio), ví dụ **3 : 1** (Cứ tiêu thụ 3 messages của VIP thì BẮT BUỘC phải tiêu thụ ít nhất 1 message của Regular).
+Nếu hàng đợi VIP cạn kiệt, toàn bộ năng lực tự động dồn 100% cho hàng đợi Regular.
+Có thể triển khai thông qua:
+1. Hai Topic Kafka độc lập với Consumer gán quota tỷ lệ.
+2. Hoặc một Redis Sorted Set (ZSET) với điểm score kết hợp giữa độ ưu tiên và thời gian chờ:
+$$\text{Score} = (\text{Priority} \times 10^{12}) + \text{CreatedAtTimestamp}$$
+Nhờ đó, những thông điệp thông thường nếu chờ quá lâu (High Age) sẽ dần có điểm vượt lên và được xử lý công bằng!`,
+        asciiDiagram: `[Weighted Fair Queueing (WFQ 3:1)]
+VIP Queue:     [ V1 ] [ V2 ] [ V3 ] [ V4 ] [ V5 ] ──> Tiêu thụ 3 V
+                                                        │
+Regular Queue: [ R1 ] [ R2 ] [ R3 ] ───────────────> Tiêu thụ 1 R (Chống Starvation!)
+                                                        │
+Consumer Process Stream: [ V1 ] ➔ [ V2 ] ➔ [ V3 ] ➔ [ R1 ] ➔ [ V4 ] ➔ [ V5 ] ➔ [ V6 ] ➔ [ R2 ] ...`,
+        badCodeTitle: '❌ Ưu tiên tuyệt đối làm nghẽn chết hàng đợi thường',
+        badCode: `public void runWorker() {
+    while (true) {
+        Message msg = redis.lpop("queue:vip");
+        if (msg != null) {
+            process(msg);
+            continue; // Nếu có bão VIP, vòng lặp này chạy mãi mãi!
+        }
+        // Khách hàng thường KHÔNG BAO GIỜ được chạy tới đây khi VIP liên tục tới!
+        Message regMsg = redis.lpop("queue:regular");
+        if (regMsg != null) process(regMsg);
+    }
+}`,
+        goodCodeTitle: '✅ Triển khai Weighted Fair Queueing (3:1) chống Starvation',
+        goodCode: `public class FairQueueConsumer {
+    private int vipCounter = 0;
+    private static final int VIP_WEIGHT = 3; // Tỷ lệ 3 VIP : 1 Regular
+
+    public void processNextMessage() {
+        Message msg = null;
+
+        // Nếu chưa vượt quota VIP (3 lần) và queue VIP có tin:
+        if (vipCounter < VIP_WEIGHT) {
+            msg = redis.lpop("queue:vip");
+            if (msg != null) {
+                vipCounter++;
+            }
+        }
+
+        // Nếu đã đủ 3 VIP HOẶC queue VIP rỗng: Bắt buộc tiêu thụ 1 Regular!
+        if (msg == null) {
+            msg = redis.lpop("queue:regular");
+            vipCounter = 0; // Reset counter sau khi đã phục vụ regular!
+        }
+
+        if (msg != null) {
+            process(msg);
+        }
+    }
+}`,
+        interviewTip: 'Khi phỏng vấn System Design về Priority Processing, hãy phân tích sự đánh đổi: "Hệ thống ưu tiên tuyệt đối (Strict Priority) luôn tiềm ẩn rủi ro Starvation. Trong kiến trúc phân tán thực tế, chúng em luôn áp dụng Weighted Fair Queueing (WFQ) hoặc Deficit Round Robin (DRR) với tỷ lệ trọng số để đảm bảo tính công bằng (Fairness), hoặc tính toán điểm Score = Priority - AgingFactor để thông điệp chờ lâu tự động thăng hạng".'
+      }    ]
   },
   {
     id: 'redis-advanced-mastery',
@@ -3272,6 +4039,65 @@ public class DatabaseAccessLimiter {
     }
 }`,
         interviewTip: 'Làm thế nào để phát hiện xem mã nguồn có đang bị dính lỗi Pinning Thread hay không? Trả lời: "Bật cờ JVM: -Djdk.tracePinnedThreads=full khi chạy ứng dụng Java 21. Khi có bất kỳ Virtual Thread nào bị ghim vào Carrier Thread do dính synchronized block hoặc Native call lúc I/O blocking, JVM sẽ tự động in stack trace chi tiết để ta tìm đúng vị trí class cần refactor sang ReentrantLock".'
+      },
+      {
+        id: 'mysql-gap-lock-next-key',
+        title: '5. Khám Phá Gap Lock & Next-Key Lock Trong InnoDB: Bí Ẩn SELECT ... FOR UPDATE Khóa Cả Dòng Chưa Tồn Tại',
+        badge: 'InnoDB Deep Internals',
+        summary: 'Tại sao SELECT ... FOR UPDATE trên một bản ghi KHÔNG TỒN TẠI lại ngăn chặn các transaction khác INSERT vào bảng? Đó là Gap Lock để triệt tiêu hiện tượng Đọc Bóng Ma (Phantom Read) ở mức cô lập REPEATABLE READ.',
+        explanation: `Trong cơ sở dữ liệu MySQL InnoDB với mức độ cô lập mặc định \`REPEATABLE READ\`, cơ chế khóa không đơn thuần là khóa từng dòng dữ liệu (Record Lock) như nhiều lập trình viên lầm tưởng.
+
+Giả sử bảng \`orders\` có các ID hiện tại: \`[10, 20, 30]\`.
+Transaction 1 chạy câu lệnh:
+\`SELECT * FROM orders WHERE id = 15 FOR UPDATE;\`
+Vì \`id = 15\` không hề tồn tại trong bảng, bạn nghĩ rằng sẽ không có dòng nào bị khóa?
+Bất ngờ, Transaction 2 chạy lệnh:
+\`INSERT INTO orders (id, amount) VALUES (12, 100);\`
+Lệnh INSERT của Transaction 2 lập tức bị **TREO CỨNG** (Block) và chờ đợi Transaction 1 commit!
+
+🔍 **Bản chất 3 loại khóa trong InnoDB:**
+1. **Record Lock:** Khóa chính xác trên bản ghi chỉ mục (Index Record) đang tồn tại.
+2. **Gap Lock (Khóa khoảng trống):** Khóa trên khoảng không gian TRỐNG giữa 2 bản ghi chỉ mục (ví dụ khoảng \`(10, 20)\`), hoặc khoảng trước bản ghi đầu tiên, hoặc sau bản ghi cuối cùng (\`(30, +infinity)\`).
+   - Mục đích duy nhất của Gap Lock: **Ngăn chặn các transaction khác INSERT một bản ghi mới vào khoảng trống này!**
+   - Nhờ đó, nếu Transaction 1 query lại lần nữa, nó sẽ không bao giờ thấy dòng nào mới xuất hiện (Triệt tiêu hiện tượng Đọc Bóng Ma - **Phantom Read**).
+3. **Next-Key Lock:** Sự kết hợp giữa Record Lock và Gap Lock: Khóa bản ghi hiện tại và khoảng trống ngay phía trước nó: \`(previous_key, current_key]\`.
+
+🚨 **Nguồn cơn của Deadlock trên Production:**
+- Hai transaction cùng chạy \`SELECT ... WHERE id = 15 FOR UPDATE\`. Vì Gap Lock không xung đột với Gap Lock, cả 2 transaction đều cùng giữ Gap Lock trên khoảng \`(10, 20)\`!
+- Sau đó, cả 2 transaction đều cố gắng chạy \`INSERT INTO orders (id) VALUES (15)\`.
+- Transaction 1 chờ Transaction 2 nhả Gap Lock, Transaction 2 chờ Transaction 1 nhả Gap Lock ➔ **DEADLOCK BÙNG NỔ NGAY LẬP TỨC!**`,
+        asciiDiagram: `Index Leaf Nodes:  ... [10] ────────── (GAP: 10 to 20) ────────── [20] ...
+                                                  │
+Transaction 1: SELECT WHERE id = 15 FOR UPDATE ──> [GIỮ GAP LOCK (10, 20)]
+                                                  │
+Transaction 2: INSERT id = 12 ──────────────────> [BỊ BLOCK CHỜ ĐỢI!] (Ngăn Phantom Read)`,
+        badCodeTitle: '❌ Dùng SELECT FOR UPDATE trên ID chưa tồn tại gây Deadlock dây chuyền',
+        badCode: `@Transactional
+public void createOrderWithCheck(Long orderId) {
+    // orderId chưa tồn tại trong DB: Lệnh này giữ Gap Lock trên toàn bộ khoảng lân cận!
+    Order order = orderRepo.findByIdForUpdate(orderId);
+    if (order == null) {
+        // Khi 2 threads cùng chạy hàm này, cả 2 đều giữ Gap Lock
+        // và cùng nhảy vào INSERT bên dưới ➔ DEADLOCK CHẮC CHẮN 100%!
+        orderRepo.save(new Order(orderId));
+    }
+}`,
+        goodCodeTitle: '✅ Dùng Redis Distributed Lock hoặc chuyển sang READ COMMITTED an toàn',
+        goodCode: `// Cách 1: Đồng bộ bằng Khóa Phân Tán Redis / Unique Constraint:
+public void createOrderSafely(Long orderId) {
+    RLock lock = redisson.getLock("order-lock:" + orderId);
+    lock.lock(5, TimeUnit.SECONDS);
+    try {
+        orderRepo.save(new Order(orderId)); // Bắt lỗi UniqueKeyViolationException nếu trùng
+    } finally {
+        lock.unlock();
+    }
+}
+
+// Cách 2: Chuyển Transaction Isolation sang READ COMMITTED:
+// Ở mức READ COMMITTED (với binlog_format=ROW), InnoDB TẮT HOÀN TOÀN Gap Lock!
+// Chỉ giữ Record Lock trên các dòng thực tế, giảm 80% nguy cơ Deadlock!`,
+        interviewTip: 'Khi phỏng vấn Senior Database Engineer, hãy nêu bật lý do lịch sử: "Tại sao MySQL mặc định chọn REPEATABLE READ với Gap Lock, trong khi Oracle và PostgreSQL lại mặc định dùng READ COMMITTED? Lý do là ở các phiên bản MySQL thời kỳ đầu, cơ chế nhân bản (Replication) phụ thuộc vào Statement-Based Replication (SBR). Nếu không có Gap Lock ngăn chặn phantom row, thứ tự commit khác nhau giữa Master và Slave sẽ làm sai lệch dữ liệu. Ngày nay với Row-Based Replication (RBR), hầu hết các doanh nghiệp lớn đều chuyển sang READ COMMITTED để loại bỏ Gap Lock và triệt tiêu Deadlock".'
       }
     ]
   },

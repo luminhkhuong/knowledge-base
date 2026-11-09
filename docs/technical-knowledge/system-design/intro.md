@@ -24,6 +24,7 @@ tags: [system-design, overview, architecture, interview-prep]
 | [Scaling Writes](/technical-knowledge/system-design/scaling-writes) | Sharding, partitioning, write-ahead log |
 | [Real-Time Updates](/technical-knowledge/system-design/real-time-updates) | WebSocket, SSE, polling strategies |
 | [Handling Contention](/technical-knowledge/system-design/handling-contention) | Locks, MVCC, optimistic concurrency |
+| [16 Concurrency Concepts](/technical-knowledge/system-design/16-concurrency-concepts-master-guide) | Processes/Threads, Race Conditions, Mutexes, Deadlocks (Coffman), CAS, Thread Pools, Event Loops, DB Locks & Fencing Tokens |
 | [Large Blob Storage](/technical-knowledge/system-design/large-blobs) | Object storage, chunking, CDN delivery |
 | [Multi-Step Processes](/technical-knowledge/system-design/saga-pattern) | Sagas, orchestration, choreography |
 | [Long-Running Tasks](/technical-knowledge/system-design/long-running-tasks) | Job queues, async patterns, progress tracking |
@@ -35,6 +36,9 @@ tags: [system-design, overview, architecture, interview-prep]
 | [API Design](/technical-knowledge/system-design/api-design) | REST, gRPC, GraphQL, versioning |
 | [Distributed Systems](/technical-knowledge/system-design/distributed-systems) | Consensus, leader election, clock sync |
 | [Security Patterns](/technical-knowledge/system-design/security-patterns) | AuthN/AuthZ, rate limiting, zero trust |
+| [OpenSearch & Splunk Migration](/technical-knowledge/system-design/opensearch-splunk-migration-guide) | Lucene segments, FSTs, DocValues, Segment Replication, SPL-to-PPL translation, Data Prepper & ISM tiering |
+| [OpenSearch Query & Search Guide](/technical-knowledge/system-design/opensearch-query-search-best-practices) | Filter Context Roaring Bitmaps, `PIT + search_after` pagination, `composite` aggregations & Hybrid BM25 + k-NN Vector Search |
+| [OpenSearch Schema & Operations Guide](/technical-knowledge/system-design/opensearch-indexing-schema-operations-guide) | Schema design (`nested` vs `flat_object`), zero-downtime Alias + `_reindex`, `_bulk` tuning, `UUIDv7` IDs, `_routing` & SRE runbooks |
 | [60 Days of System Design](/technical-knowledge/system-design/60-days-of-system-design) | Structured 60-day syllabus categorized into 7 modules + 12 high-impact scenario breakdowns |
 | [Common Interview Questions](/technical-knowledge/system-design/common-interview-questions) | Full question bank with discussion points |
 

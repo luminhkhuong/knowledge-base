@@ -27,6 +27,7 @@ describe('Critical Interactive Architecture Diagrams Suite', () => {
     'BlockchainScalingDiagram.tsx',
     'OpenApiLifecycleDiagram.tsx',
     'ApiNamingConventionsDiagram.tsx',
+    'KafkaRedisOffsetFenceDiagram.tsx',
     'LlmTrainingAndJevDiagram.tsx',
     'LlmTrainingPipelineDiagram.tsx',
     'RlvrVerificationFlowDiagram.tsx',
@@ -42,6 +43,13 @@ describe('Critical Interactive Architecture Diagrams Suite', () => {
     'CockroachDbArchitectureDiagram.tsx',
     'SplitBrainMultiLeaderDiagram.tsx',
     'ReshardingStrategiesDiagram.tsx',
+    'TimeAndUniqueIdDiagram.tsx',
+    'SpringBootConfigPropertiesDiagram.tsx',
+    'CodingWithAiAgentsDiagram.tsx',
+    'DistributedResiliencePaymentsTicketingDiagram.tsx',
+    'KubernetesCalicoBgpDiagram.tsx',
+    'JavaReadWriteLockConvoyDiagram.tsx',
+    'JmmHappensBeforeVisualizerDiagram.tsx',
   ];
 
   for (const filename of criticalDiagrams) {

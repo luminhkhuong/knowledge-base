@@ -97,7 +97,8 @@ const sidebars: SidebarsConfig = {
 								'technical-knowledge/java/java-graalvm-aot',
 								'technical-knowledge/java/java-virtual-threads',
 								'technical-knowledge/java/production-oom-debugging-guide',
-								'technical-knowledge/java/java-diagnostics-troubleshooting'
+								'technical-knowledge/java/java-diagnostics-troubleshooting',
+								'technical-knowledge/java/java-logging-slf4j-stacktrace'
 							]
 						},
 						{
@@ -145,6 +146,7 @@ const sidebars: SidebarsConfig = {
 								'technical-knowledge/spring/spring-boot',
 								'technical-knowledge/spring/spring-boot-internals',
 								'technical-knowledge/spring/spring-boot-bootstrap-yml',
+								'technical-knowledge/spring/spring-boot-configuration-properties',
 								'technical-knowledge/spring/spring-boot-advanced',
 								'technical-knowledge/spring/kubernetes-graceful-shutdown-zero-downtime',
 								'technical-knowledge/spring/spring-boot-interview-questions'
@@ -356,6 +358,7 @@ const sidebars: SidebarsConfig = {
 							collapsed: true,
 							items: [
 								'technical-knowledge/system-design/full-system-design-course',
+								'technical-knowledge/system-design/senior-engineer-design-course',
 								'technical-knowledge/system-design/architecture-fundamentals',
 								'technical-knowledge/system-design/what-breaks-at-scale',
 								'technical-knowledge/system-design/capacity-planning',
@@ -370,6 +373,7 @@ const sidebars: SidebarsConfig = {
 							collapsed: true,
 							items: [
 								'technical-knowledge/system-design/concurrency-async-threading-models',
+								'technical-knowledge/system-design/16-concurrency-concepts-master-guide',
 								'technical-knowledge/system-design/reverse-proxy-load-balancer-api-gateway',
 								'technical-knowledge/system-design/nginx-internals',
 								'technical-knowledge/system-design/load-balancing-reliability',
@@ -407,6 +411,7 @@ const sidebars: SidebarsConfig = {
 								'technical-knowledge/system-design/long-running-tasks',
 								'technical-knowledge/system-design/handling-contention',
 								'technical-knowledge/system-design/inventory-reservation-system',
+								'technical-knowledge/system-design/resilience-patterns-payments-ticketing',
 								'technical-knowledge/system-design/crdt-collaborative-systems',
 								'technical-knowledge/system-design/real-time-updates',
 							],
@@ -460,6 +465,9 @@ const sidebars: SidebarsConfig = {
 								'technical-knowledge/system-design/security-patterns',
 								'technical-knowledge/system-design/observability',
 								'technical-knowledge/system-design/log-aggregation',
+								'technical-knowledge/system-design/opensearch-splunk-migration-guide',
+								'technical-knowledge/system-design/opensearch-query-search-best-practices',
+								'technical-knowledge/system-design/opensearch-indexing-schema-operations-guide',
 								'technical-knowledge/system-design/distributed-tracing',
 								'technical-knowledge/system-design/opentelemetry-sampling-strategies',
 							],
@@ -551,6 +559,7 @@ const sidebars: SidebarsConfig = {
 							items: [
 								'technical-knowledge/security/web-security-fundamentals',
 								'technical-knowledge/security/authentication-authorization',
+								'technical-knowledge/security/jwt-oauth2-oidc-deep-dive',
 								'technical-knowledge/security/cookies-vs-sessions-vs-jwt',
 								'technical-knowledge/security/refresh-token-security-invalidation',
 								'technical-knowledge/security/web-vulnerabilities',
@@ -755,7 +764,9 @@ const sidebars: SidebarsConfig = {
 							items: [
 								'technical-knowledge/kafka/streams/overview',
 								'technical-knowledge/kafka/streams/topology-architecture',
+								'technical-knowledge/kafka/streams/invalid-topology-updates',
 								'technical-knowledge/kafka/streams/state-stores-rocksdb',
+								'technical-knowledge/kafka/streams/redis-external-state-offset-fencing',
 								'technical-knowledge/kafka/streams/windowing-joins',
 								'technical-knowledge/kafka/streams/processor-api-dlq',
 								'technical-knowledge/kafka/streams/spring-boot',
@@ -824,6 +835,7 @@ const sidebars: SidebarsConfig = {
 								'technical-knowledge/kafka/advanced/processing-and-ordering',
 								'technical-knowledge/kafka/advanced/kafka-exactly-once',
 								'technical-knowledge/kafka/advanced/rebalance-storms',
+								'technical-knowledge/kafka/advanced/kafka-log-compaction',
 								'technical-knowledge/kafka/advanced/kafka-throughput-optimization',
 								'technical-knowledge/kafka/advanced/monitoring-operations',
 							]
@@ -2067,6 +2079,7 @@ const sidebars: SidebarsConfig = {
 				'technical-knowledge/ai-agents/skills',
 				'technical-knowledge/ai-agents/harness',
 				'technical-knowledge/ai-agents/vibe-coding',
+				'technical-knowledge/ai-agents/spec-driven-agentic-coding',
 				'technical-knowledge/ai-agents/prompt-engineering',
 				'technical-knowledge/ai-agents/prompt-caching',
 				'technical-knowledge/ai-agents/ai-tools-landscape',

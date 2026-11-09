@@ -97,6 +97,13 @@
     },
     "config": "config---arcade-5-e-9-6a3"
   },
+  "/tech-english/-7ee": {
+    "__comp": "__comp---site-src-pages-tech-english-index-tsx-23-a-324",
+    "__context": {
+      "plugin": "plugin---arcade-a-74-d23"
+    },
+    "config": "config---arcade-5-e-9-6a3"
+  },
   "/-e5f": {
     "__comp": "__comp---site-src-pages-index-tsx-1-df-d3e",
     "__context": {
@@ -104,13 +111,13 @@
     },
     "config": "config---arcade-5-e-9-6a3"
   },
-  "/-4dc": {
+  "/-e54": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---aba-d70"
     }
   },
-  "/-1ee": {
+  "/-f28": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---22-d-307"
   },
@@ -261,6 +268,10 @@
   "/tags/aggregation-aff": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-aggregationc-96-de8"
+  },
+  "/tags/aggregations-f3b": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-aggregations-482-35d"
   },
   "/tags/agile-fd7": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -842,6 +853,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-brokere-98-555"
   },
+  "/tags/broker-architecture-94c": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-broker-architecture-0-be-bde"
+  },
   "/tags/bson-6cb": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-bson-774-f88"
@@ -865,6 +880,10 @@
   "/tags/building-blocks-f45": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-building-blocks-669-096"
+  },
+  "/tags/bulk-api-a26": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-bulk-api-27-a-0e0"
   },
   "/tags/bulk-payments-c1e": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -1297,6 +1316,10 @@
   "/tags/clean-code-3c5": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-clean-code-665-ea8"
+  },
+  "/tags/cleanup-policy-e4f": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-cleanup-policyf-37-05d"
   },
   "/tags/clearing-0e1": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -1866,6 +1889,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-data-migration-407-ac2"
   },
+  "/tags/data-prepper-3e8": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-data-prepper-1-cf-79d"
+  },
   "/tags/data-processing-a53": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-data-processingd-96-6e8"
@@ -1893,6 +1920,10 @@
   "/tags/database-internals-c0c": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-database-internals-7-b-0-9cd"
+  },
+  "/tags/database-isolation-445": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-database-isolation-5-d-9-bab"
   },
   "/tags/databases-953": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -2170,6 +2201,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-distributed-lock-1-f-9-086"
   },
+  "/tags/distributed-locks-015": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-distributed-locksec-4-347"
+  },
   "/tags/distributed-systems-808": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-distributed-systems-7-ca-af6"
@@ -2425,6 +2460,10 @@
   "/tags/envelope-encryption-6cf": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-envelope-encryptione-5-a-c01"
+  },
+  "/tags/environment-variables-fe3": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-environment-variables-554-0eb"
   },
   "/tags/envoy-7d3": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -2694,6 +2733,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-fednow-17-f-3dd"
   },
+  "/tags/fencing-tokens-9bb": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-fencing-tokens-547-02d"
+  },
   "/tags/fetch-pull-4e9": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-fetch-pulleaa-40b"
@@ -2829,6 +2872,10 @@
   "/tags/fraud-8f0": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-fraudb-02-91f"
+  },
+  "/tags/freecodecamp-941": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-freecodecamp-838-77e"
   },
   "/tags/fresher-55a": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -3062,6 +3109,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-handshakedfd-de1"
   },
+  "/tags/happens-before-6bc": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-happens-beforec-4-b-a41"
+  },
   "/tags/hardware-sympathy-aad": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-hardware-sympathy-745-383"
@@ -3181,6 +3232,10 @@
   "/tags/hot-optimization-bfb": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-hot-optimizationbcd-972"
+  },
+  "/tags/hotel-reservation-eb0": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-hotel-reservationd-11-542"
   },
   "/tags/hotstuff-fda": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -3762,6 +3817,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-kms-0-a-3-935"
   },
+  "/tags/knn-269": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-knnb-31-372"
+  },
   "/tags/knowledge-base-6af": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-knowledge-base-629-626"
@@ -4021,6 +4080,10 @@
   "/tags/locks-ade": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-locks-261-b0f"
+  },
+  "/tags/log-4-j-2-734": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-log-4-j-2-aa-7-d4e"
   },
   "/tags/log-blame-57c": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -4446,6 +4509,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-multi-stage-build-9-e-3-ed0"
   },
+  "/tags/multi-tenancy-a00": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-multi-tenancyda-0-234"
+  },
   "/tags/multipart-ae8": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-multipartd-4-a-681"
@@ -4638,6 +4705,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-oauth-2-f-57-786"
   },
+  "/tags/oauth-2-1-750": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-oauth-2-1704-758"
+  },
   "/tags/object-class-857": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-object-classfb-2-de0"
@@ -4746,6 +4817,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-opense-9-c-bb2"
   },
+  "/tags/opensearch-ab1": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-opensearchdaa-70c"
+  },
   "/tags/openssl-5d3": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-openssl-97-a-c3e"
@@ -4825,6 +4900,10 @@
   "/tags/ospf-34a": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-ospf-158-80c"
+  },
+  "/tags/outage-postmortem-b08": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-outage-postmortem-831-ca5"
   },
   "/tags/outages-0bf": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -5098,6 +5177,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-pgbouncer-756-f06"
   },
+  "/tags/phantom-token-42e": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-phantom-tokenbdc-5f8"
+  },
   "/tags/phaser-e1d": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-phaser-94-c-717"
@@ -5125,6 +5208,10 @@
   "/tags/pitr-28c": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-pitr-379-da4"
+  },
+  "/tags/pkce-eb3": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-pkce-295-52e"
   },
   "/tags/planning-b1b": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -5193,6 +5280,10 @@
   "/tags/posting-2d2": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-postingc-9-e-862"
+  },
+  "/tags/ppl-862": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-ppl-48-d-ef0"
   },
   "/tags/practice-5a1": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -5306,6 +5397,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-profilee-7-a-83f"
   },
+  "/tags/profiles-6ef": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-profiles-496-695"
+  },
   "/tags/profiling-cf5": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-profiling-5-f-2-f32"
@@ -5333,6 +5428,10 @@
   "/tags/propagation-053": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-propagation-7-e-0-a98"
+  },
+  "/tags/properties-4da": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-propertiesfd-4-405"
   },
   "/tags/protobuf-660": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -5418,6 +5517,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-querye-06-27a"
   },
+  "/tags/query-dsl-ff1": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-query-dsl-6-cd-309"
+  },
   "/tags/query-optimization-eae": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-query-optimizatione-2-f-2fd"
@@ -5453,6 +5556,10 @@
   "/tags/race-condition-a9d": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-race-condition-62-a-911"
+  },
+  "/tags/race-conditions-da1": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-race-conditions-751-0ab"
   },
   "/tags/raft-351": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -6190,6 +6297,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-slackc-5-e-d40"
   },
+  "/tags/slf-4-j-b58": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-slf-4-j-555-13c"
+  },
   "/tags/sliced-test-b05": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-sliced-test-7-e-9-66f"
@@ -6289,6 +6400,10 @@
   "/tags/spath-068": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-spath-060-5a9"
+  },
+  "/tags/spec-driven-development-c6e": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-spec-driven-developmente-4-f-3e3"
   },
   "/tags/spiffe-e05": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -6449,6 +6564,10 @@
   "/tags/stacks-20b": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-stacksafe-9c8"
+  },
+  "/tags/stacktrace-fc5": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-stacktrace-510-0d9"
   },
   "/tags/stakeholders-abe": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -6726,6 +6845,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-task-definition-944-43b"
   },
+  "/tags/tcc-a4e": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-tccd-08-a86"
+  },
   "/tags/tcp-bb4": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-tcpa-7-e-6a6"
@@ -6854,6 +6977,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-throughputc-5-a-6c6"
   },
+  "/tags/ticketing-abe": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-ticketing-7-bf-392"
+  },
   "/tags/tiered-compilation-62c": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-tiered-compilation-794-4b9"
@@ -6933,6 +7060,10 @@
   "/tags/topology-c1c": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-topologyb-92-fc8"
+  },
+  "/tags/topology-exception-fcd": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-topology-exception-4-d-6-bf4"
   },
   "/tags/tor-976": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
@@ -7238,6 +7369,10 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-wait-freeac-2-e69"
   },
+  "/tags/waiting-room-972": {
+    "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
+    "__props": "__props---tags-waiting-room-022-d9b"
+  },
   "/tags/wal-8a2": {
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-walf-6-b-372"
@@ -7494,7 +7629,7 @@
     "__comp": "__comp---theme-doc-tag-doc-list-pagedf-2-9f0",
     "__props": "__props---tags-zsete-05-17c"
   },
-  "/-870": {
+  "/-e03": {
     "__comp": "__comp---theme-doc-roota-94-67a"
   },
   "/aws-bf9": {
@@ -8212,6 +8347,10 @@
   "/technical-knowledge/ai-agents/skills-d9f": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-ai-agents-skillsdb-3-464"
+  },
+  "/technical-knowledge/ai-agents/spec-driven-agentic-coding-27a": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---technical-knowledge-ai-agents-spec-driven-agentic-coding-606-0e7"
   },
   "/technical-knowledge/ai-agents/vibe-coding-cdc": {
     "__comp": "__comp---theme-doc-item-178-a40",
@@ -12305,6 +12444,10 @@
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-java-java-locksefe-5b2"
   },
+  "/technical-knowledge/java/java-logging-slf4j-stacktrace-a5a": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---technical-knowledge-java-java-logging-slf-4-j-stacktracea-54-889"
+  },
   "/technical-knowledge/java/java-new-features-0de": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-java-java-new-features-036-0b4"
@@ -12377,7 +12520,7 @@
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-kafka-advanced-kafka-exactly-oncea-8-e-31a"
   },
-  "/technical-knowledge/kafka/advanced/kafka-log-compaction-e22": {
+  "/technical-knowledge/kafka/advanced/kafka-log-compaction-551": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-kafka-advanced-kafka-log-compaction-8-c-1-99e"
   },
@@ -12533,6 +12676,10 @@
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-kafka-streams-interview-questions-7-d-0-0cf"
   },
+  "/technical-knowledge/kafka/streams/invalid-topology-updates-cd4": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---technical-knowledge-kafka-streams-invalid-topology-updates-8-aa-d5c"
+  },
   "/technical-knowledge/kafka/streams/overview-0c4": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-kafka-streams-overview-3-b-9-6ac"
@@ -12544,6 +12691,10 @@
   "/technical-knowledge/kafka/streams/production-runbook-c66": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-kafka-streams-production-runbook-32-b-4e2"
+  },
+  "/technical-knowledge/kafka/streams/redis-external-state-offset-fencing-d0b": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---technical-knowledge-kafka-streams-redis-external-state-offset-fencing-130-ce5"
   },
   "/technical-knowledge/kafka/streams/spring-boot-d39": {
     "__comp": "__comp---theme-doc-item-178-a40",
@@ -12833,6 +12984,10 @@
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-security-interview-questionsee-2-d86"
   },
+  "/technical-knowledge/security/jwt-oauth2-oidc-deep-dive-db1": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---technical-knowledge-security-jwt-oauth-2-oidc-deep-divedab-d1d"
+  },
   "/technical-knowledge/security/keys-signing-tls-4e3": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-security-keys-signing-tls-78-e-de9"
@@ -12933,6 +13088,10 @@
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-spring-spring-boot-bootstrap-yml-575-af5"
   },
+  "/technical-knowledge/spring/spring-boot-configuration-properties-fbb": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---technical-knowledge-spring-spring-boot-configuration-properties-53-e-fc5"
+  },
   "/technical-knowledge/spring/spring-boot-internals-eba": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-spring-spring-boot-internals-317-82e"
@@ -12992,6 +13151,10 @@
   "/technical-knowledge/spring/spring-transactional-deep-dive-e79": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-spring-spring-transactional-deep-dive-618-10e"
+  },
+  "/technical-knowledge/system-design/16-concurrency-concepts-master-guide-314": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---technical-knowledge-system-design-16-concurrency-concepts-master-guide-52-c-14c"
   },
   "/technical-knowledge/system-design/60-days-of-system-design-054": {
     "__comp": "__comp---theme-doc-item-178-a40",
@@ -13208,6 +13371,18 @@
   "/technical-knowledge/system-design/observability-c9c": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-system-design-observabilityf-58-0ad"
+  },
+  "/technical-knowledge/system-design/opensearch-indexing-schema-operations-guide-d20": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---technical-knowledge-system-design-opensearch-indexing-schema-operations-guide-7-d-8-a9f"
+  },
+  "/technical-knowledge/system-design/opensearch-query-search-best-practices-ae5": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---technical-knowledge-system-design-opensearch-query-search-best-practices-8-db-eae"
+  },
+  "/technical-knowledge/system-design/opensearch-splunk-migration-guide-f5a": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---technical-knowledge-system-design-opensearch-splunk-migration-guide-900-db0"
   },
   "/technical-knowledge/system-design/opentelemetry-sampling-strategies-4b5": {
     "__comp": "__comp---theme-doc-item-178-a40",
@@ -13429,6 +13604,10 @@
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-system-design-real-time-updatesec-5-da9"
   },
+  "/technical-knowledge/system-design/resilience-patterns-payments-ticketing-433": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---technical-knowledge-system-design-resilience-patterns-payments-ticketing-470-9b6"
+  },
   "/technical-knowledge/system-design/retry-pattern-236": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-system-design-retry-pattern-591-320"
@@ -13456,6 +13635,10 @@
   "/technical-knowledge/system-design/security-patterns-100": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---technical-knowledge-system-design-security-patternse-8-a-7c7"
+  },
+  "/technical-knowledge/system-design/senior-engineer-design-course-f24": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---technical-knowledge-system-design-senior-engineer-design-course-15-e-49d"
   },
   "/technical-knowledge/system-design/service-decomposition-566": {
     "__comp": "__comp---theme-doc-item-178-a40",

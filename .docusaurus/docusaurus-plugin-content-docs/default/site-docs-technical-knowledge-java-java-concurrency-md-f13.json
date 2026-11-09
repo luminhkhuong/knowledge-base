@@ -53,11 +53,11 @@
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "Concurrency vs. Parallelism — The Complete Beginner's Guide",
+    "title": "Concurrency vs. Parallelism: From Core Analogy to Production Threading",
     "permalink": "/technical-knowledge/java/concurrency-vs-parallelism"
   },
   "next": {
-    "title": "Java Memory Model & Concurrency Guarantees",
+    "title": "Java Memory Model, Happens-Before & Race Conditions",
     "permalink": "/technical-knowledge/java/java-jmm-memory-model"
   }
 }
